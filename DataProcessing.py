@@ -74,6 +74,6 @@ if __name__ == '__main__':
 
     _ = []
     for d in data:
-        _.append(len(d) % 2)
-    print(len(_))
+        _.append(len(d) % 3)
+    print((_))
     print(_.count(0))
