@@ -86,18 +86,13 @@ class DataProcessing:
             counter = 0
             while counter < len(idx)-1:
                 with open('{}/script{}_{}'.format(PATH, str(i), str(counter)), 'w') as file:
-                    if len(self.fixedData[i][idx[counter]:idx[counter+1]]) == 3: # valuenya 3
+                    if len(self.fixedData[i][idx[counter]:idx[counter+1]]) == n:
                         for u in self.fixedData[i][idx[counter]:idx[counter+1]]:
                             file.write('%s\n' % u)
-                            # print('{} idx[{}]:idx[{}]'.format(i, idx[counter], idx[counter+1]))
                     else:
                         break
                 counter += 1
             i += 1
-
-        # if len(self.fixedData[0][idx[0]:idx[1]]) == 3:
-        #     print(1)
-        # print((self.fixedData[0][idx[0]:idx[1]]))
 
 
 if __name__ == '__main__':
@@ -106,18 +101,7 @@ if __name__ == '__main__':
     data = dp.data
     data = [dp.fixUtterance(d) for d in data]
     data = dp.fixedData
-    dp.splitData(3) # BELOM CEK KALO N NYA > 3
-
-    a = 0
-    b = len(data)  # len data
-    c = 3  # berapa banyak mau displit
-    #
-    # # data[for i in range len(data)] [a:c?]
-    # print(data[0][0:3])
-    # print(data[0][3:6])
-    # print()
-    # print(data[1][0:3])
-    # print()
+    dp.splitData(5)
 
     # print('len_data: ', len(data))
     # print('range_len_data', range(len(data)))
