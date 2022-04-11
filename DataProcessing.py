@@ -38,6 +38,10 @@ class DataProcessing:
     #     return self.data
 
     def getSpeaker(self, conv):
+        """
+        :param conv: String
+        :return: speaker: String, e.g 'F000'
+        """
         # Transcript file
         # if ":" not in conv:
         #     return ""
@@ -51,9 +55,8 @@ class DataProcessing:
 
     def getUtterance(self, conv):
         """
-        input: string
-        :param conv:
-        :return:
+        :param conv: String
+        :return: utterance: String, e.g 'Excuse me.'
         """
         if ":" not in conv:
             return ""
