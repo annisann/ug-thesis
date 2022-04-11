@@ -162,7 +162,7 @@ if __name__ == '__main__':
 
     # CONCAT TRANSCRIPT AND ITS EMO LABEL
     i_trans = 0
-    transcript_n=list()
+    n_scripts=list()
     while i_trans < len(transcripts):
         i_utt = 0
         script_n = list()
@@ -173,10 +173,7 @@ if __name__ == '__main__':
                 index_emo = emos[i_trans].index(next(filter(lambda e: e['id'] == currentID, emos[i_trans])))
                 script_n.append(dict(transcripts[i_trans][i_utt].items() | emos[i_trans][index_emo].items()))
             i_utt += 1
-        transcript_n.append(script_n)
+        n_scripts.append(script_n)
         i_trans += 1
 
     # FIX UTTERANCES IN DATA
-
-    # print('len_data: ', len(data))
-    # print('range_len_data', range(len(data)))
