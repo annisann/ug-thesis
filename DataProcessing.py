@@ -91,9 +91,9 @@ class DataProcessing:
 
         for f in file:
             self.emoDict = dict(id=self.getSpeaker(f),
-                                v=f.split('\t')[3][1:-1].split(',')[0],
-                                a=f.split('\t')[3][1:-1].split(',')[1],
-                                d=f.split('\t')[3][1:-1].split(',')[2]
+                                v=float(f.split('\t')[3][1:-1].split(',')[0]),
+                                a=float(f.split('\t')[3][1:-1].split(',')[1]),
+                                d=float(f.split('\t')[3][1:-1].split(',')[2])
                                 )
             self.emos.append(self.emoDict)
 
