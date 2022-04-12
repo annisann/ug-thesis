@@ -23,28 +23,11 @@ class DataProcessing:
         self.data = list()
         self.fixedData = list()
 
-    # def loadData(self):
-    #     scripts = []
-    #
-    #     for script in glob.glob(self.trans_path):
-    #         scripts.append(script)
-    #     # BISA LGSG DIGABUNGIN DI DALEM GLOB
-    #     for script in scripts:
-    #         rawData = open(script).read()
-    #         temp = rawData.split('\n')  # bakal ada "" di list (string kosong)
-    #         if "" in temp:
-    #             temp.remove("")  # kalo pake .splitlines() gabakal ada string kosong
-    #         self.data.append(temp)
-    #     return self.data
-
     def getSpeaker(self, conv):
         """
         :param conv: String
         :return: speaker: String, e.g 'F000'
         """
-        # Transcript file
-        # if ":" not in conv:
-        #     return ""
         speaker = conv.split(":")[0]
         speaker = re.sub(r'^.*_([FM]\w{3}).*$', r'\1', speaker)
 
@@ -58,8 +41,6 @@ class DataProcessing:
         :param conv: String
         :return: utterance: String, e.g 'Excuse me.'
         """
-        if ":" not in conv:
-            return ""
         utterance = conv.split(":")[1]
         return utterance
 
@@ -100,7 +81,6 @@ class DataProcessing:
         return self.emos
 
     def fixUtterance(self, listOfDict):  # inp: List
-        # TO DO: BENERIN BUAT INPUT YANG BERBEDA (LISTS OF DICTIONARIES) -> iteratenya bisa di main?
         """
         :param conv: list of dictionaries [{},{},...,{}]
         :return:
@@ -110,9 +90,7 @@ class DataProcessing:
 
         # COUNT DUPLICATE CONSECUTIVE UTTERANCES
         for i in range(len(listOfDict) - 1):
-            # currSpeaker = self.getSpeaker(listOfDict[i]['id'])[0]  # -> getSpeaker(dictName[i]['speaker'])[0]
             currSpeaker = listOfDict[i]['id'][0]
-            # nextSpeaker = self.getSpeaker(listOfDict[i + 1]['id'])[0]  # -> getSpeaker(dictName[i+1]['speaker'])[0]
             nextSpeaker = listOfDict[i+1]['id'][0]
 
             if currSpeaker == nextSpeaker:
@@ -127,11 +105,6 @@ class DataProcessing:
         utterances = []
         for n in utt_per_speaker:
             index += n
-            # ganti, karna jadi dict, bukan string
-            # decode = self.getSpeaker(listOfDict[index - 1]['id']) + " : " + ' '.join(  # -> dictName[index-1]['speaker']
-            #     [self.getUtterance(c) for c in listOfDict[index - n:index]])  # -> dictName[index-n:index]['utterance']
-
-            # get list of utterance tiap dict index-n:index
 
             fixed = dict(id=listOfDict[index-1]['id'],
                          # id=self.getSpeaker(listOfDict[index-1]['id']),
@@ -140,10 +113,8 @@ class DataProcessing:
                          v=sum([listOfDict[i]['v'] for i in range(index-n, index)])/n,
                          a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
                          d=sum([listOfDict[i]['d'] for i in range(index-n, index)])/n)
-            # utterances.append(decode)  # ke dict baru? fixedDict -> append dictFixed['speaker'] & dictFixed['utterance'] = ' '.join(..)
             utterances.append(fixed)
         return utterances
-        # self.fixedData.append(utterances)
 
     def splitData(self, n):
         PATH = os.getcwd() + '/n_' + str(n)
