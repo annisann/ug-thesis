@@ -99,19 +99,21 @@ class DataProcessing:
 
         return self.emos
 
-    def fixUtterance(self, conv):  # inp: List
+    def fixUtterance(self, listOfDict):  # inp: List
         # TO DO: BENERIN BUAT INPUT YANG BERBEDA (LISTS OF DICTIONARIES) -> iteratenya bisa di main?
         """
-        :param conv: list of dictionaries
+        :param conv: list of dictionaries [{},{},...,{}]
         :return:
         """
         counter = 1
         utt_per_speaker = []
 
         # COUNT DUPLICATE CONSECUTIVE UTTERANCES
-        for i in range(len(conv) - 1):
-            currSpeaker = self.getSpeaker(conv[i]['id'])[0]  # -> getSpeaker(dictName[i]['speaker'])[0]
-            nextSpeaker = self.getSpeaker(conv[i + 1]['id'])[0]  # -> getSpeaker(dictName[i+1]['speaker'])[0]
+        for i in range(len(listOfDict) - 1):
+            # currSpeaker = self.getSpeaker(listOfDict[i]['id'])[0]  # -> getSpeaker(dictName[i]['speaker'])[0]
+            currSpeaker = listOfDict[i]['id'][0]
+            # nextSpeaker = self.getSpeaker(listOfDict[i + 1]['id'])[0]  # -> getSpeaker(dictName[i+1]['speaker'])[0]
+            nextSpeaker = listOfDict[i+1]['id'][0]
 
             if currSpeaker == nextSpeaker:
                 counter += 1
@@ -125,19 +127,23 @@ class DataProcessing:
         utterances = []
         for n in utt_per_speaker:
             index += n
-
             # ganti, karna jadi dict, bukan string
-            decode = self.getSpeaker(conv[index - 1]['id']) + " : " + ' '.join(  # -> dictName[index-1]['speaker']
-                [self.getUtterance(c) for c in conv[index - n:index]])  # -> dictName[index-n:index]['utterance']
+            # decode = self.getSpeaker(listOfDict[index - 1]['id']) + " : " + ' '.join(  # -> dictName[index-1]['speaker']
+            #     [self.getUtterance(c) for c in listOfDict[index - n:index]])  # -> dictName[index-n:index]['utterance']
 
             # get list of utterance tiap dict index-n:index
 
-            fixed = dict(id=self.getSpeaker(conv[index-1]['id']),
-                         utterances=' '.join([self.getUtterance(c) for c in conv[index-n:index]['utterance']]),
-                         v=getpass)
-            utterances.append(decode)  # ke dict baru? fixedDict -> append dictFixed['speaker'] & dictFixed['utterance'] = ' '.join(..)
-
-        self.fixedData.append(utterances)
+            fixed = dict(id=listOfDict[index-1]['id'],
+                         # id=self.getSpeaker(listOfDict[index-1]['id']),
+                         # utterances=' '.join([self.getUtterance(c) for c in listOfDict[index-n:index]['utterance']]),
+                         utterances = ' '.join([''.join(listOfDict[i]['utterance']) for i in range(index-n, index)]),
+                         v=sum([listOfDict[i]['v'] for i in range(index-n, index)])/n,
+                         a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
+                         d=sum([listOfDict[i]['d'] for i in range(index-n, index)])/n)
+            # utterances.append(decode)  # ke dict baru? fixedDict -> append dictFixed['speaker'] & dictFixed['utterance'] = ' '.join(..)
+            utterances.append(fixed)
+        return utterances
+        # self.fixedData.append(utterances)
 
     def splitData(self, n):
         PATH = os.getcwd() + '/n_' + str(n)
@@ -157,36 +163,3 @@ class DataProcessing:
                         break
                 counter += 1
             i += 1
-
-
-if __name__ == '__main__':
-    dp = DataProcessing()
-    # dp.loadData()
-    # data = dp.data
-    # data = [dp.fixUtterance(d) for d in data]
-    # data = dp.fixedData
-    # dp.splitData(5)
-
-    # PATH LIST
-    scripts_path = [path for path in glob.glob(dp.trans_path)]
-    emo_path = [path for path in glob.glob(dp.emo_path)]
-
-    # DEFINE LISTS OF TRANSCRIPT AND  EMO
-    transcripts = [dp.getTranscription(path) for path in scripts_path]
-    emos = [dp.getVAD(path) for path in emo_path]
-
-    # CONCAT TRANSCRIPT AND ITS EMO LABEL
-    i_trans = 0
-    n_scripts=list()
-    while i_trans < len(transcripts):
-        i_utt = 0
-        script_n = list()
-        while i_utt < len(transcripts[i_trans]):
-            currentID = transcripts[i_trans][i_utt]['id']
-            if re.match(r'[FM]\d{3}', currentID):
-                if [currentID] == list(utt['id'] for utt in transcripts[i_trans] if utt['id'] == currentID):
-                    index_emo = emos[i_trans].index(next(filter(lambda e: e['id'] == currentID, emos[i_trans])))
-                    script_n.append(dict(transcripts[i_trans][i_utt].items() | emos[i_trans][index_emo].items()))
-            i_utt += 1
-        n_scripts.append(script_n)
-        i_trans += 1
