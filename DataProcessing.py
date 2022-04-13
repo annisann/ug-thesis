@@ -1,7 +1,6 @@
 import glob
 import os
 import re
-import numpy as np
 
 
 class DataProcessing:
@@ -114,21 +113,29 @@ class DataProcessing:
                          a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
                          d=sum([listOfDict[i]['d'] for i in range(index-n, index)])/n)
             utterances.append(fixed)
+        self.fixedData = utterances
         return utterances
 
-    def splitData(self, n):
+    def splitData(self, n, scripts):
+        """
+        split data into n-utterances.
+        :param n: number of utterances wanted
+        :param scripts: list of list of dictionaries [[utt_1, utt_2, ... , utt_n], ... , [utt_1, ... , utt_n]]
+        :return: -
+        """
         PATH = os.getcwd() + '/n_' + str(n)
         if not os.path.exists(PATH):
             os.makedirs(PATH)
 
-        idx = [i for i in range(0, len(self.fixedData), n)]
+        idx = [i for i in range(0, len(scripts), n)]
         i = 0
-        while i < len(self.fixedData):
+        while i < len(scripts):
             counter = 0
-            while counter < len(idx) - 1:
+            while counter < len(idx)-1:
                 with open('{}/script{}_{}'.format(PATH, str(i), str(counter)), 'w') as file:
-                    if len(self.fixedData[i][idx[counter]:idx[counter + 1]]) == n:
-                        for u in self.fixedData[i][idx[counter]:idx[counter + 1]]:
+                    n_utterances = scripts[i][idx[counter]:idx[counter + 1]]
+                    if len(n_utterances) == n:
+                        for u in n_utterances:
                             file.write('%s\n' % u)
                     else:
                         break
