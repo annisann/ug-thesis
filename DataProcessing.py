@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import re
 
@@ -132,11 +133,10 @@ class DataProcessing:
         while i < len(scripts):
             counter = 0
             while counter < len(idx)-1:
-                with open('{}/script{}_{}'.format(PATH, str(i), str(counter)), 'w') as file:
+                with open('{}/script{}_{}.txt'.format(PATH, str(i), str(counter)), 'w') as file:
                     n_utterances = scripts[i][idx[counter]:idx[counter + 1]]
                     if len(n_utterances) == n:
-                        for u in n_utterances:
-                            file.write('%s\n' % u)
+                        file.write(json.dumps(n_utterances))
                     else:
                         break
                 counter += 1
