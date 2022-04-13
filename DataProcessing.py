@@ -107,7 +107,7 @@ class DataProcessing:
             index += n
 
             fixed = dict(id=listOfDict[index-1]['id'],
-                         utterances = ' '.join([''.join(listOfDict[i]['utterance']) for i in range(index-n, index)]),
+                         utterance=' '.join([''.join(listOfDict[i]['utterance']) for i in range(index-n, index)]),
                          v=sum([listOfDict[i]['v'] for i in range(index-n, index)])/n,
                          a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
                          d=sum([listOfDict[i]['d'] for i in range(index-n, index)])/n)
