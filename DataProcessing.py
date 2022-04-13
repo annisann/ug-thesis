@@ -60,7 +60,7 @@ class DataProcessing:
                                        utterance=self.getUtterance(f)
                                        )
             self.transcriptions.append(self.transcriptDict)
-        return self.transcriptions  # transcriptionsnya [{}, .. , {}], bukan [{},..,{}],[{},...,{}],...]
+        return self.transcriptions
 
     def getVAD(self, path):
         ''''''
@@ -80,7 +80,7 @@ class DataProcessing:
 
         return self.emos
 
-    def fixUtterance(self, listOfDict):  # inp: List
+    def fixUtterance(self, listOfDict):
         """
         :param conv: list of dictionaries [{},{},...,{}]
         :return:
@@ -107,8 +107,6 @@ class DataProcessing:
             index += n
 
             fixed = dict(id=listOfDict[index-1]['id'],
-                         # id=self.getSpeaker(listOfDict[index-1]['id']),
-                         # utterances=' '.join([self.getUtterance(c) for c in listOfDict[index-n:index]['utterance']]),
                          utterances = ' '.join([''.join(listOfDict[i]['utterance']) for i in range(index-n, index)]),
                          v=sum([listOfDict[i]['v'] for i in range(index-n, index)])/n,
                          a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
