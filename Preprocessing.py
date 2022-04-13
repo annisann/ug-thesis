@@ -1,5 +1,4 @@
 import os
-import re
 from pycontractions import Contractions
 from gensim.scripts.glove2word2vec import glove2word2vec
 from gensim.models import KeyedVectors
@@ -40,15 +39,3 @@ class Preprocessing:
     def tokenizing(self, utterance):
         self.utterance = utterance
         return self.utterance.split()
-
-
-if __name__ == '__main__':
-    # utterance = ["I'd like to know how I'd done that!",
-    #                         "We're going to the zoo and I don't think I'll be home for dinner.",
-    #                         "Theyre going to the zoo and she'll be home for dinner."]
-    pp = Preprocessing()
-    utterances = ["i'd like to know how i'd done that", "ok?????"]
-    expanded = pp.expandContractions(utterances)
-    casefolded = [pp.casefolding(_) for _ in expanded]
-    filtered = [pp.filterPunct(_) for _ in casefolded]
-    token = [pp.tokenizing(_) for _ in filtered]
