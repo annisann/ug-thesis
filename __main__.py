@@ -3,10 +3,12 @@ from Preprocessing import Preprocessing
 import glob
 import os
 import re
+import json
 
 
 # INITIALIZE CLASS
 dp = DataProcessing()
+pp = Preprocessing()
 
 # PATH LIST
 scripts_path = [path for path in glob.glob(dp.trans_path)]
@@ -18,7 +20,7 @@ emos = [dp.getVAD(path) for path in emo_path]
 
 # CONCAT TRANSCRIPT AND ITS EMO LABEL
 i_trans = 0
-n_scripts=list()
+n_scripts = list()
 while i_trans < len(transcripts):
     i_utt = 0
     script_n = list()
@@ -36,3 +38,34 @@ while i_trans < len(transcripts):
 fixed_scripts = list()
 for scripts in n_scripts:
     fixed_scripts.append(dp.fixUtterance(scripts))
+
+# SPLIT DATA
+N = [2, 4, 6]
+for n in N:
+    dp.splitData(n, fixed_scripts)
+
+# PREPROCESSING
+pathList = ['n_2/*', 'n_4/*', 'n_6/*']
+for path in pathList:
+    for script_path in glob.glob(path):
+        if os.path.getsize(script_path) != 0:
+            file = open(script_path, 'r+')
+            listOfNUtterances = json.load(file)
+
+            # EXPAND CONTRACTIONS -> input: List of utterances
+            utterances = [uttDict['utterance'] for uttDict in listOfNUtterances]
+            expanded = pp.expandContractions(utterances)
+
+            for i in range(len(listOfNUtterances)):
+                listOfNUtterances[i]['utterance'] = expanded[i]
+                # CASEFOLDING
+                listOfNUtterances[i]['utterance'] = pp.casefolding(listOfNUtterances[i]['utterance'])
+                # PUNCTUATION FILTERING
+                listOfNUtterances[i]['utterance'] = pp.filterPunct(listOfNUtterances[i]['utterance'])
+                # TOKENIZING
+                listOfNUtterances[i]['token'] = pp.tokenizing(listOfNUtterances[i]['utterance'])
+
+            print('{} has preprocessed'.format(script_path))
+            file.seek(0)
+            file.write(json.dumps(listOfNUtterances))
+            file.truncate()
