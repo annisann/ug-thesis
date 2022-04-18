@@ -1,5 +1,6 @@
 from DataProcessing import DataProcessing
 from Preprocessing import Preprocessing
+from Model import PretrainedEmbeddings
 import glob
 import os
 import re
@@ -39,7 +40,7 @@ fixed_scripts = list()
 for scripts in n_scripts:
     fixed_scripts.append(dp.fixUtterance(scripts))
 
-# SPLIT DATA
+# SPLIT DATA INTO N-UTTERANCES
 N = [2, 4, 6]
 for n in N:
     dp.splitData(n, fixed_scripts)
@@ -69,3 +70,10 @@ for path in pathList:
             file.seek(0)
             file.write(json.dumps(listOfNUtterances))
             file.truncate()
+
+# SPLIT DATA (TRAIN, DEV, TEST)
+from sklearn.model_selection import train_test_split
+
+# train: 0.6; val: 0.2; test: 0.2
+trainData, testData = train_test_split(os.listdir('n_2'), train_size=0.6, random_state=10)
+testData, valData = train_test_split(testData, test_size=0.2, random_state=8)
