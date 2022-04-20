@@ -6,7 +6,10 @@ import re
 
 class DataProcessing:
     """
-    merge utterance from the same speaker.
+    Processing IEMOCAP raw dataset:
+    1) merge transcription and dimensional data.
+    2) merge utterance from the same speaker.
+    3) split data into n-utterances.
     """
 
     def __init__(self):
@@ -63,7 +66,11 @@ class DataProcessing:
         return self.transcriptions
 
     def getVAD(self, path):
-        ''''''
+        """
+        get dimensional emotion (valence, arousal, dominance) from EmoEvaluation file.
+        :param path: EmoEvaluation file (.txt)
+        :return: list of dictionaries
+        """
         self.path = path
         self.emos = list()
 
@@ -82,8 +89,9 @@ class DataProcessing:
 
     def fixUtterance(self, listOfDict):
         """
+        concatenate utterances from the same speaker and its dimensional emotion value.
         :param conv: list of dictionaries [{},{},...,{}]
-        :return:
+        :return: list of dictionaries
         """
         counter = 1
         utt_per_speaker = []
@@ -117,8 +125,8 @@ class DataProcessing:
 
     def splitData(self, n, scripts):
         """
-        split data into n-utterances.
-        :param n: number of utterances wanted
+        split data into n-utterances and save to new dir.
+        :param n: number of utterances
         :param scripts: list of list of dictionaries [[utt_1, utt_2, ... , utt_n], ... , [utt_1, ... , utt_n]]
         :return: -
         """
