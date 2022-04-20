@@ -1,6 +1,6 @@
 import json
 import os.path
-
+import ast
 import torch
 from torch.utils.data import Dataset
 import numpy as np
@@ -63,8 +63,9 @@ class PretrainedEmbeddings(object):
 
 
 class ConvEmoRecogDataset(Dataset):
-    def load_dataset(self, utterance_num):
-        folder = f'n_{utterance_num}/'
+
+    def load_dataset(self):
+        folder = f'n_{self.utterance_num}/'
         scripts = os.listdir(folder)
 
         dataframes = []
@@ -77,22 +78,27 @@ class ConvEmoRecogDataset(Dataset):
                 data = pd.DataFrame(f)
                 dataframes.append(data)
 
-        dataframes = pd.concat(dataframes)
+        dataframes = pd.concat(dataframes, ignore_index=True)
         return dataframes
 
     def __init__(self, utterance_num):
-        self.data = self.load_dataset(utterance_num)
         self.utterance_num = utterance_num
+        self.data = self.load_dataset()
+        self.max_token_len = self.max_token_len()
 
     def __len__(self):
-        return len(self.data)
+        # return len(self.data) # num of utterances
+        return len(self.data)/self.utterance_num # num data
 
     def __getitem__(self, index):
         # index = file ke-n
         index_1 = index * self.utterance_num
         index_2 = index_1 + self.utterance_num
-        data = self.data.loc[index_1:index_2]
+        data = self.data.iloc[index_1:index_2]
         token, v, a, d = data.token, data.v, data.a, data.d
 
         return np.array(token), np.array(v), np.array(a), np.array(d)
+
         # TODO: get max_len of token DF.token
+    def max_token_len(self):
+        return max(list(map(lambda token: len(token), self.data.token)))
