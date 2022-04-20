@@ -1,6 +1,10 @@
+import json
+import os.path
+
 import torch
+from torch.utils.data import Dataset
 import numpy as np
-from annoy import AnnoyIndex
+import pandas as pd
 
 
 class PretrainedEmbeddings(object):
@@ -56,3 +60,39 @@ class PretrainedEmbeddings(object):
                 torch.nn.init.xavier_uniform_(embedding_i)
                 self.final_embeddings[i, :] = embedding_i
         return self.final_embeddings
+
+
+class ConvEmoRecogDataset(Dataset):
+    def load_dataset(self, utterance_num):
+        folder = f'n_{utterance_num}/'
+        scripts = os.listdir(folder)
+
+        dataframes = []
+        # TODO: load data from folder
+
+        for script in scripts:
+            if os.path.getsize(folder + script) != 0:
+                f = open(folder + script).read()
+                f = ast.literal_eval(f)
+                data = pd.DataFrame(f)
+                dataframes.append(data)
+
+        dataframes = pd.concat(dataframes)
+        return dataframes
+
+    def __init__(self, utterance_num):
+        self.data = self.load_dataset(utterance_num)
+        self.utterance_num = utterance_num
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # index = file ke-n
+        index_1 = index * self.utterance_num
+        index_2 = index_1 + self.utterance_num
+        data = self.data.loc[index_1:index_2]
+        token, v, a, d = data.token, data.v, data.a, data.d
+
+        return np.array(token), np.array(v), np.array(a), np.array(d)
+        # TODO: get max_len of token DF.token
