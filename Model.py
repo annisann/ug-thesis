@@ -2,9 +2,10 @@ import json
 import os.path
 import ast
 import torch
-from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset
 
 
 class PretrainedEmbeddings(object):
@@ -65,40 +66,55 @@ class PretrainedEmbeddings(object):
 class ConvEmoRecogDataset(Dataset):
 
     def load_dataset(self):
-        folder = f'n_{self.utterance_num}/'
+        folder = f'n_{self.utterance_num}'
         scripts = os.listdir(folder)
+        scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
 
-        dataframes = []
-        # TODO: load data from folder
+        # SPLIT DATA, hasilnya adalah list of dir ['n_2/..', ..., ...]
+        # ratio 8:1:1
+        trainData, testData = train_test_split(scripts, train_size=0.8, random_state=10)
+        testData, valData = train_test_split(testData, test_size=0.5, random_state=8)
 
-        for script in scripts:
-            if os.path.getsize(folder + script) != 0:
-                f = open(folder + script).read()
+        traindf, valdf, testdf = [], [], []
+
+        for data in [trainData, valData, testData]:
+            for script in data:
+                f = open(script).read()
                 f = ast.literal_eval(f)
-                data = pd.DataFrame(f)
-                dataframes.append(data)
+                df = pd.DataFrame(f)
+                if data == trainData:
+                    traindf.append(df)
+                elif data == valData:
+                    valdf.append(df)
+                elif data == testData:
+                    testdf.append(df)
 
-        dataframes = pd.concat(dataframes, ignore_index=True)
-        return dataframes
+        traindf = pd.concat(traindf, ignore_index=True)
+        valdf = pd.concat(valdf, ignore_index=True)
+        testdf = pd.concat(testdf, ignore_index=True)
+        return traindf, valdf, testdf
 
     def __init__(self, utterance_num):
         self.utterance_num = utterance_num
-        self.data = self.load_dataset()
-        self.max_token_len = self.max_token_len()
+        self.traindata, self.valdata, self.testdata = self.load_dataset()
+        self.max_token_train, self.max_token_val, self.max_token_test = self.max_token_len()
 
     def __len__(self):
-        # return len(self.data) # num of utterances
-        return len(self.data)/self.utterance_num # num data
+        return len(self.traindata)/self.utterance_num,\
+               len(self.valdata)/self.utterance_num,\
+               len(self.testdata)/self.utterance_num
 
-    def __getitem__(self, index):
+    def __getitem__(self, data, index):
         # index = file ke-n
         index_1 = index * self.utterance_num
         index_2 = index_1 + self.utterance_num
-        data = self.data.iloc[index_1:index_2]
+        data = data.iloc[index_1:index_2]
         token, v, a, d = data.token, data.v, data.a, data.d
 
         return np.array(token), np.array(v), np.array(a), np.array(d)
 
-        # TODO: get max_len of token DF.token
     def max_token_len(self):
-        return max(list(map(lambda token: len(token), self.data.token)))
+        return max(list(map(lambda token: len(token), self.traindata.token))),\
+               max(list(map(lambda token: len(token), self.valdata.token))),\
+               max(list(map(lambda token: len(token), self.testdata.token)))
+
