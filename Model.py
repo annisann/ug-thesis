@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 class PretrainedEmbeddings(object):
     """ A wrapper around pre-trained word vectors and their use """
 
-    def load_from_file(self, dim):
+    def load_from_file(self, dim): # vocab glove
         """Instantiate from pre-trained vector file.
 
         Vector file should be of the format:
@@ -24,8 +24,11 @@ class PretrainedEmbeddings(object):
             instance of PretrainedEmbeddigns
         """
         self.dim = dim
-        self.word2index = {}
+        self.word2index = {} # vocabulary
         self.embeddings = []
+
+        self.word2index['<PAD>'] = 0
+        self.word2index['<UNK>'] = 1
 
         embedding_file = 'glove.6B.{}d.txt'.format(self.dim)
 
@@ -49,7 +52,7 @@ class PretrainedEmbeddings(object):
         """
         return self.embeddings[self.word2index[word]]
 
-    def lookup_index(self, index):
+    def get_index(self, index):
         self.index2word = {idx: token for token, idx in self.word2index.items()}
 
         if index not in self.idx2word:
@@ -59,17 +62,26 @@ class PretrainedEmbeddings(object):
     def __len__(self):
         return len(self.word2index)
 
-    def make_embedding_matrix(self, words):
+    def make_embedding_matrix(self, words, max_len):
+        """
+        padding and make embedding vectors
+        :param words: list of tokens
+        :return:
+        """
+
         self.word2index, self.embeddings = self.load_from_file(self.dim)
         self.embedding_size = self.embeddings.shape[1]
         self.final_embeddings = np.zeros((len(words), self.embedding_size))
 
+        # PADDING
+        words += ['<PAD>'] * (max_len - len(words))
+
         for i, word in enumerate(words):
-            if word in self.word2idx:
+            if word in self.word2idx: # if word is in vocabulary
                 self.final_embeddings[i, :] = self.embeddings[self.word2idx[word]]
             else:
                 embedding_i = torch.ones(1, self.embedding_size)
-                torch.nn.init.xavier_uniform_(embedding_i)
+                torch.nn.init.xavier_uniform_(embedding_i) # random value, as np.random
                 self.final_embeddings[i, :] = embedding_i
         return self.final_embeddings
 
@@ -127,4 +139,3 @@ class ConvEmoRecogDataset(Dataset):
         return max(list(map(lambda token: len(token), self.traindata.token))),\
                max(list(map(lambda token: len(token), self.valdata.token))),\
                max(list(map(lambda token: len(token), self.testdata.token)))
-
