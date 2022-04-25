@@ -1,5 +1,5 @@
 import json
-import os.path
+import os
 import ast
 import torch
 import numpy as np
@@ -23,10 +23,11 @@ class PretrainedEmbeddings(object):
         Returns:
             instance of PretrainedEmbeddigns
         """
-        embedding_file = 'glove.6B.{}d.txt'.format(dim)
-
+        self.dim = dim
         self.word2index = {}
         self.embeddings = []
+
+        embedding_file = 'glove.6B.{}d.txt'.format(self.dim)
 
         with open(embedding_file) as fp:
             for line in fp.readlines():
@@ -48,8 +49,18 @@ class PretrainedEmbeddings(object):
         """
         return self.embeddings[self.word2index[word]]
 
-    def make_embedding_matrix(self, dim, words):
-        self.word2idx, self.embeddings = self.load_from_file(dim)
+    def lookup_index(self, index):
+        self.index2word = {idx: token for token, idx in self.word2index.items()}
+
+        if index not in self.idx2word:
+            raise KeyError(f"Index {index} is not in vocabulary.")
+        return self.idx2word[index]
+
+    def __len__(self):
+        return len(self.word2index)
+
+    def make_embedding_matrix(self, words):
+        self.word2index, self.embeddings = self.load_from_file(self.dim)
         self.embedding_size = self.embeddings.shape[1]
         self.final_embeddings = np.zeros((len(words), self.embedding_size))
 
@@ -89,7 +100,7 @@ class ConvEmoRecogDataset(Dataset):
                 elif data == testData:
                     testdf.append(df)
 
-        traindf = pd.concat(traindf, ignore_index=True)
+        traindf= pd.concat(traindf, ignore_index=True)
         valdf = pd.concat(valdf, ignore_index=True)
         testdf = pd.concat(testdf, ignore_index=True)
         return traindf, valdf, testdf
@@ -97,14 +108,13 @@ class ConvEmoRecogDataset(Dataset):
     def __init__(self, utterance_num):
         self.utterance_num = utterance_num
         self.traindata, self.valdata, self.testdata = self.load_dataset()
-        self.max_token_train, self.max_token_val, self.max_token_test = self.max_token_len()
 
     def __len__(self):
         return len(self.traindata)/self.utterance_num,\
                len(self.valdata)/self.utterance_num,\
                len(self.testdata)/self.utterance_num
 
-    def __getitem__(self, data, index):
+    def __getdata__(self, data, index):
         # index = file ke-n
         index_1 = index * self.utterance_num
         index_2 = index_1 + self.utterance_num
