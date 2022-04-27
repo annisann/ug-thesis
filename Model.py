@@ -78,25 +78,25 @@ class PretrainedEmbeddings(object):
         Returns:
             instance of PretrainedEmbeddigns
         """
+        UNKNOWN_TOKEN = '<UNK>'
+        PADDING_TOKEN = '<PAD>'
         self.dim = dim
-        self.word2index = {}  # vocabulary
-        self.embeddings = []
-
-        self.word2index['<PAD>'] = 0
-        self.word2index['<UNK>'] = 1
+        self.word2index = {UNKNOWN_TOKEN: 0, PADDING_TOKEN: 1}  # JANGAN PAKE DICT
+        self.words = [UNKNOWN_TOKEN, PADDING_TOKEN]
+        self.embeddings = np.random.uniform(-0.25, 0.25, (2,50)).tolist()
 
         embedding_file = 'glove.6B.{}d.txt'.format(self.dim)
 
-        with open(embedding_file) as fp:
+        with open(embedding_file, encoding="utf8") as fp:
             for line in fp.readlines():
-                line = line.split(" ")
+                line = line.split()
                 word = line[0]
-                vec = np.array([float(x) for x in line[1:]])
-
-                self.word2index[word] = len(self.word2index)
+                self.words.append(word)
+                vec = [float(x) for x in line[1:]]
                 self.embeddings.append(vec)
+                self.word2index[word] = len(self.word2index)
 
-        return self.word2index, np.stack(self.embeddings)
+        return self.words, np.array(self.embeddings), self.word2index
 
     def get_embedding(self, word):
         """
@@ -110,9 +110,9 @@ class PretrainedEmbeddings(object):
     def get_index(self, index):
         self.index2word = {idx: token for token, idx in self.word2index.items()}
 
-        if index not in self.idx2word:
+        if index not in self.index2word:
             raise KeyError(f"Index {index} is not in vocabulary.")
-        return self.idx2word[index]
+        return self.index2word[index]
 
     def __len__(self):
         return len(self.word2index)
@@ -139,5 +139,3 @@ class PretrainedEmbeddings(object):
                 torch.nn.init.xavier_uniform_(embedding_i)  # random value, as np.random
                 self.final_embeddings[i, :] = embedding_i
         return self.final_embeddings
-
-
