@@ -42,7 +42,7 @@ class PretrainedEmbeddings(object):
                 self.embeddings.append(vec)
                 self.word2index[word] = len(self.word2index)
 
-        return self.words, np.array(self.embeddings), self.word2index
+        return self.words, np.array(self.embeddings)
 
     def get_embedding(self, word):
         """
@@ -63,30 +63,41 @@ class PretrainedEmbeddings(object):
     def __len__(self):
         return len(self.word2index)
 
-    # TODO: BIKIN BUAT DI DATA BUKAN CLASS EMBEDDINGS
-    def make_embedding_matrix(self, words, max_len):
-        """
-        padding and make embedding vectors
-        :param words: list of tokens
-        :return:
-        """
-        self.word2index, self.embeddings = self.load_from_file(self.dim)
-        self.embedding_size = self.embeddings.shape[1]
-        self.final_embeddings = np.zeros((len(words), self.embedding_size))
+    # # TODO: BIKIN BUAT DI DATA BUKAN CLASS EMBEDDINGS
+    # def make_embedding_matrix(self, words, max_len):
+    #     """
+    #     padding and make embedding vectors
+    #     :param words: list of tokens
+    #     :return:
+    #     """
+    #     self.word2index, self.embeddings = self.load_from_file(self.dim)
+    #     self.embedding_size = self.embeddings.shape[1]
+    #     self.final_embeddings = np.zeros((len(words), self.embedding_size))
+    #
+    #     # PADDING
+    #     words += ['<PAD>'] * (max_len - len(words))
+    #
+    #     for i, word in enumerate(words):
+    #         if word in self.word2idx:  # if word is in vocabulary
+    #             self.final_embeddings[i, :] = self.embeddings[self.word2idx[word]]
+    #         else:
+    #             embedding_i = torch.ones(1, self.embedding_size)
+    #             torch.nn.init.xavier_uniform_(embedding_i)  # random value, as np.random
+    #             self.final_embeddings[i, :] = embedding_i
+    #     return self.final_embeddings
 
-        # PADDING
-        words += ['<PAD>'] * (max_len - len(words))
-
-        for i, word in enumerate(words):
-            if word in self.word2idx:  # if word is in vocabulary
-                self.final_embeddings[i, :] = self.embeddings[self.word2idx[word]]
-            else:
-                embedding_i = torch.ones(1, self.embedding_size)
-                torch.nn.init.xavier_uniform_(embedding_i)  # random value, as np.random
-                self.final_embeddings[i, :] = embedding_i
-        return self.final_embeddings
 
 class ConvEmoRecogDataset(Dataset):
+
+    def __init__(self, utterance_num, vocab, max_seq_length):
+        self.utterance_num = utterance_num
+        self.train, self.val, self.test = self.load_dataset()
+
+        self.word2idx = {word: index for index, word in enumerate(vocab)}
+        self.idx2word = {index: word for word, index in self.word2idx.items()}
+        self.PADDING_TOKEN = '<PAD>'
+        self.UNKNOWN_TOKEN = '<UNK>'
+        self.max_seq_length = max_seq_length
 
     def load_dataset(self):
         folder = f'n_{self.utterance_num}'
@@ -101,10 +112,14 @@ class ConvEmoRecogDataset(Dataset):
         traindf, valdf, testdf = [], [], []
 
         for data in [trainData, valData, testData]:
-            for script in data:
+            for i, script in enumerate(data):
                 f = open(script).read()
                 f = ast.literal_eval(f)
                 df = pd.DataFrame(f)
+
+                print(df.token)
+                df.token[i] = self.padding(df.token[i])
+
                 if data == trainData:
                     traindf.append(df)
                 elif data == valData:
@@ -112,14 +127,20 @@ class ConvEmoRecogDataset(Dataset):
                 elif data == testData:
                     testdf.append(df)
 
+        # tiap tokennya dipadding
         traindf = pd.concat(traindf, ignore_index=True)
         valdf = pd.concat(valdf, ignore_index=True)
         testdf = pd.concat(testdf, ignore_index=True)
         return traindf, valdf, testdf
 
-    def __init__(self, utterance_num):
-        self.utterance_num = utterance_num
-        self.train, self.val, self.test = self.load_dataset()
+    def padding(self, tokens):
+        tokens += self.PADDING_TOKEN * (self.max_seq_length - len(tokens))
+        for i in range(len(tokens)):
+            if tokens[i] not in self.word2idx:
+                tokens[i] = self.word2idx[self.UNKNOWN_TOKEN]
+            else:
+                tokens[i] = self.word2idx[tokens[i]]
+        return tokens
 
     def __len__(self):
         return len(self.train) / self.utterance_num, \
