@@ -87,10 +87,15 @@ class PretrainedEmbeddings(object):
     #     return self.final_embeddings
 
 
-class ConvEmoRecogDataset(Dataset):
+class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_TOKEN dst "gak ada variablenya"
 
     def __init__(self, utterance_num, vocab, max_seq_length):
         self.utterance_num = utterance_num
+
+        folder = f'n_{self.utterance_num}'
+        scripts = os.listdir(folder)
+        self.scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
+
         self.train, self.val, self.test = self.load_dataset()
 
         self.word2idx = {word: index for index, word in enumerate(vocab)}
@@ -100,25 +105,24 @@ class ConvEmoRecogDataset(Dataset):
         self.max_seq_length = max_seq_length
 
     def load_dataset(self):
-        folder = f'n_{self.utterance_num}'
-        scripts = os.listdir(folder)
-        scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
-
         # SPLIT DATA, hasilnya adalah list of dir ['n_2/..', ..., ...]
         # ratio 8:1:1
-        trainData, testData = train_test_split(scripts, train_size=0.8, random_state=10)
+        trainData, testData = train_test_split(self.scripts, train_size=0.8, random_state=10)
         testData, valData = train_test_split(testData, test_size=0.5, random_state=8)
 
         traindf, valdf, testdf = [], [], []
 
         for data in [trainData, valData, testData]:
-            for i, script in enumerate(data):
+            for script in data:
                 f = open(script).read()
                 f = ast.literal_eval(f)
                 df = pd.DataFrame(f)
 
-                print(df.token)
-                df.token[i] = self.padding(df.token[i])
+                for i in range(len(df)):
+                    # df.token.replace(df.token[i], self.padding(df.token[i])) # AttributeError: 'list' object has no attribute 'replace'
+                    df.token[i] = self.padding(df.token[i]) # AttributeError
+                    # print(len(df.token[i]))
+                    # df.token[i].extend(['<PAD>']*10) # disini mauuuuu
 
                 if data == trainData:
                     traindf.append(df)
@@ -134,7 +138,12 @@ class ConvEmoRecogDataset(Dataset):
         return traindf, valdf, testdf
 
     def padding(self, tokens):
-        tokens += self.PADDING_TOKEN * (self.max_seq_length - len(tokens))
+        """
+        :param tokens: list
+        :return:
+        """
+        tokens.extend([self.PADDING_TOKEN] * (self.max_seq_length - len(tokens))) # disini gamau # salahnya disini
+
         for i in range(len(tokens)):
             if tokens[i] not in self.word2idx:
                 tokens[i] = self.word2idx[self.UNKNOWN_TOKEN]
