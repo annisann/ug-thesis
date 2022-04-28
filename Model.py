@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
+import torch.nn as nn
 
 
 class PretrainedEmbeddings(object):
@@ -27,8 +28,8 @@ class PretrainedEmbeddings(object):
         PADDING_TOKEN = '<PAD>'
 
         self.dim = dim
-        self.word2index = {UNKNOWN_TOKEN: 0, PADDING_TOKEN: 1}  # JANGAN PAKE DICT
-        self.words = [UNKNOWN_TOKEN, PADDING_TOKEN]
+        self.word2index = {PADDING_TOKEN: 0, UNKNOWN_TOKEN: 1}  # JANGAN PAKE DICT
+        self.words = [PADDING_TOKEN, UNKNOWN_TOKEN]
         self.embeddings = np.random.uniform(-0.25, 0.25, (2,50)).tolist()
 
         embedding_file = 'glove.6B.{}d.txt'.format(self.dim)
@@ -42,7 +43,7 @@ class PretrainedEmbeddings(object):
                 self.embeddings.append(vec)
                 self.word2index[word] = len(self.word2index)
 
-        return self.words, np.array(self.embeddings)
+        return np.array(self.words), np.array(self.embeddings)
 
     def get_embedding(self, word):
         """
@@ -87,7 +88,7 @@ class PretrainedEmbeddings(object):
     #     return self.final_embeddings
 
 
-class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_TOKEN dst "gak ada variablenya"
+class ConvEmoRecogDataset(Dataset):
 
     def __init__(self, utterance_num, vocab, max_seq_length):
         self.utterance_num = utterance_num
@@ -96,16 +97,17 @@ class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_T
         scripts = os.listdir(folder)
         self.scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
 
-        self.train, self.val, self.test = self.load_dataset()
-
         self.word2idx = {word: index for index, word in enumerate(vocab)}
         self.idx2word = {index: word for word, index in self.word2idx.items()}
-        self.PADDING_TOKEN = '<PAD>'
-        self.UNKNOWN_TOKEN = '<UNK>'
+
+        self.padding_token = '<PAD>'
+        self.unknown_token = '<UNK>'
         self.max_seq_length = max_seq_length
 
+        self.seq_input = []
+        # TODO: seq_inputnya buat per data (train, val, test)
+
     def load_dataset(self):
-        # SPLIT DATA, hasilnya adalah list of dir ['n_2/..', ..., ...]
         # ratio 8:1:1
         trainData, testData = train_test_split(self.scripts, train_size=0.8, random_state=10)
         testData, valData = train_test_split(testData, test_size=0.5, random_state=8)
@@ -119,10 +121,7 @@ class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_T
                 df = pd.DataFrame(f)
 
                 for i in range(len(df)):
-                    # df.token.replace(df.token[i], self.padding(df.token[i])) # AttributeError: 'list' object has no attribute 'replace'
-                    df.token[i] = self.padding(df.token[i]) # AttributeError
-                    # print(len(df.token[i]))
-                    # df.token[i].extend(['<PAD>']*10) # disini mauuuuu
+                    self.seq_input.append(self.padding(df.iloc[i].token))
 
                 if data == trainData:
                     traindf.append(df)
@@ -131,10 +130,10 @@ class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_T
                 elif data == testData:
                     testdf.append(df)
 
-        # tiap tokennya dipadding
         traindf = pd.concat(traindf, ignore_index=True)
         valdf = pd.concat(valdf, ignore_index=True)
         testdf = pd.concat(testdf, ignore_index=True)
+
         return traindf, valdf, testdf
 
     def padding(self, tokens):
@@ -142,19 +141,21 @@ class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_T
         :param tokens: list
         :return:
         """
-        tokens.extend([self.PADDING_TOKEN] * (self.max_seq_length - len(tokens))) # disini gamau # salahnya disini
+        seq_tokens = tokens.copy()
+        seq_tokens.extend([self.padding_token] * (self.max_seq_length-len(seq_tokens)))
 
-        for i in range(len(tokens)):
-            if tokens[i] not in self.word2idx:
-                tokens[i] = self.word2idx[self.UNKNOWN_TOKEN]
+        for i in range(len(seq_tokens)):
+            if seq_tokens[i] not in self.word2idx:
+                seq_tokens[i] = self.word2idx[self.unknown_token]
             else:
-                tokens[i] = self.word2idx[tokens[i]]
-        return tokens
+                seq_tokens[i] = self.word2idx[seq_tokens[i]]
+        return seq_tokens
 
-    def __len__(self):
-        return len(self.train) / self.utterance_num, \
-               len(self.val) / self.utterance_num, \
-               len(self.test) / self.utterance_num
+
+    # def __len__(self):
+    #     return len(self.train) / self.utterance_num, \
+    #            len(self.val) / self.utterance_num, \
+    #            len(self.test) / self.utterance_num
 
     def get_data(self, data, index):
         # index = file ke-n
@@ -171,36 +172,41 @@ class ConvEmoRecogDataset(Dataset): # kalo ga Dataset, bisa. tapi self.PADDING_T
                max(list(map(lambda token: len(token), self.test.token)))
 
 
-class Vocab:
-    # special token
-    UNKNOWN_TOKEN = '<UNK>'
-    PAD_TOKEN = '<PAD>'
+class UtteranceEncoder(nn.Module): # tiap data masuk glove, bilstm, attention, etc.; output: utterance vector
+    # inputnya jadi tensor coba
+    """
+    Compute utterance vector for each utterance
+    """
+    def __init__(self, config):
+        """
+        :param encoded_input: list of padded utterance (encoded)
+        """
+        super(UtteranceEncoder, self).__init__()
 
-    SPECIAL_TOKENS = {UNKNOWN_TOKEN,
-                      PAD_TOKEN}
+        # EMBEDDING
+        pretrained_embeddings = config['pretrained_embeddings']
+        freeze_embeddings = config['freeze_embeddings']
+        # LSTM
+        hidden_size = config['hidden_size']
+        bidirectional = config['bidirectional']
+        num_layers = config['num_layers']
 
-    def __init__(self, min_freq=0):
-        # min_freq kepake gak?
-        self.word2index = {}
-        self.index2word = {}
-        self.word_freq = {}
-        self.min_freq = min_freq
+        self.vocab_size = pretrained_embeddings.shape[0]
+        self.embeddings_dim = pretrained_embeddings.shape[1]
+        self.embedding = nn.Embedding.from_pretrained(torch.Tensor(pretrained_embeddings),
+                                                      freeze=freeze_embeddings)
+        self.lstm = nn.LSTM(input_size=self.embeddings_dim,
+                            hidden_size=hidden_size,
+                            num_layers=num_layers,
+                            bidirectional=bidirectional
+                            )
+        # self.attention =
 
-        self.add(UNKNOWN_TOKEN)
-        self.add(PAD_TOKEN)
-
-    def add(self, word, frequency=1):
-        if word in self.word2index:
-            self.word_freq[word] += frequency
-        else:
-            word_index = len(self._word2id)
-            self.word2index[word] = word_index
-            self.index2word[word_index] = word
-            self.word_freq[word] = frequency
-
-
-class UtteranceEncoder:
-    # vektor utterance 1; label: v, a, d
-    # vektor utterance 2; label: v, a, d
-
-    pass
+    def forward(self, encoded_input):
+        """
+        :param encoded_input: padded encoded sentence
+        :return:
+        """
+        encoded_input = torch.Tensor(encoded_input).long()
+        embed = self.embedding(encoded_input)
+        
