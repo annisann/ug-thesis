@@ -174,9 +174,8 @@ class ConvEmoRecogDataset(Dataset):
 class UtteranceEncoder(nn.Module):
     """
     Compute utterance vector for each utterance
+    Pretrained GloVe Embedding -> BiLSTM -> Max Pooling -> Utterance Vector
     """
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def __init__(self, config):
         """
