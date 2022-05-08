@@ -30,7 +30,7 @@ class PretrainedEmbeddings(object):
         self.dim = dim
         self.word2index = {PADDING_TOKEN: 0, UNKNOWN_TOKEN: 1}  # JANGAN PAKE DICT
         self.words = [PADDING_TOKEN, UNKNOWN_TOKEN]
-        self.embeddings = np.random.uniform(-0.25, 0.25, (2,50)).tolist()
+        self.embeddings = np.random.uniform(-0.25, 0.25, (2, 50)).tolist()
 
         embedding_file = 'glove.6B.{}d.txt'.format(self.dim)
 
@@ -104,7 +104,7 @@ class ConvEmoRecogDataset(Dataset):
         self.unknown_token = '<UNK>'
         self.max_seq_length = max_seq_length
 
-        self.seq_input = []
+        self.seq_input = [] # yang udah di padding
         # TODO: seq_inputnya buat per data (train, val, test)
 
     def load_dataset(self):
@@ -142,7 +142,7 @@ class ConvEmoRecogDataset(Dataset):
         :return:
         """
         seq_tokens = tokens.copy()
-        seq_tokens.extend([self.padding_token] * (self.max_seq_length-len(seq_tokens)))
+        seq_tokens.extend([self.padding_token] * (self.max_seq_length - len(seq_tokens)))
 
         for i in range(len(seq_tokens)):
             if seq_tokens[i] not in self.word2idx:
@@ -150,7 +150,6 @@ class ConvEmoRecogDataset(Dataset):
             else:
                 seq_tokens[i] = self.word2idx[seq_tokens[i]]
         return seq_tokens
-
 
     # def __len__(self):
     #     return len(self.train) / self.utterance_num, \
@@ -172,11 +171,13 @@ class ConvEmoRecogDataset(Dataset):
                max(list(map(lambda token: len(token), self.test.token)))
 
 
-class UtteranceEncoder(nn.Module): # tiap data masuk glove, bilstm, attention, etc.; output: utterance vector
-    # inputnya jadi tensor coba
+class UtteranceEncoder(nn.Module):
     """
     Compute utterance vector for each utterance
     """
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     def __init__(self, config):
         """
         :param encoded_input: list of padded utterance (encoded)
@@ -184,29 +185,46 @@ class UtteranceEncoder(nn.Module): # tiap data masuk glove, bilstm, attention, e
         super(UtteranceEncoder, self).__init__()
 
         # EMBEDDING
-        pretrained_embeddings = config['pretrained_embeddings']
-        freeze_embeddings = config['freeze_embeddings']
-        # LSTM
-        hidden_size = config['hidden_size']
-        bidirectional = config['bidirectional']
-        num_layers = config['num_layers']
+        self.pretrained_embeddings = config['pretrained_embeddings']
+        self.freeze_embeddings = config['freeze_embeddings']
 
-        self.vocab_size = pretrained_embeddings.shape[0]
-        self.embeddings_dim = pretrained_embeddings.shape[1]
-        self.embedding = nn.Embedding.from_pretrained(torch.Tensor(pretrained_embeddings),
-                                                      freeze=freeze_embeddings)
-        self.lstm = nn.LSTM(input_size=self.embeddings_dim,
-                            hidden_size=hidden_size,
-                            num_layers=num_layers,
-                            bidirectional=bidirectional
-                            )
-        # self.attention =
+        # LSTM
+        self.hidden_size = config['hidden_size']
+        self.bidirectional = config['bidirectional']
+        self.num_layers = config['num_layers']
+
+        self.vocab_size = self.pretrained_embeddings.shape[0]
+        self.embeddings_dim = self.pretrained_embeddings.shape[1]
+        self.embedding = nn.Embedding.from_pretrained(torch.Tensor(self.pretrained_embeddings),
+                                                      freeze=self.freeze_embeddings)
+        self.bilstm = nn.LSTM(input_size=self.embeddings_dim,
+                              hidden_size=self.hidden_size,
+                              num_layers=self.num_layers,
+                              bidirectional=self.bidirectional,
+                              batch_first=True
+                              )
+
+    def init_state(self, batch_size):
+        if self.bidirectional:
+            return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
+                    torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
+        else:
+            return (torch.zeros(self.num_layers, batch_size, self.hidden_size),
+                    torch.zeros(self.num_layers, batch_size, self.hidden_size))
+
 
     def forward(self, encoded_input):
         """
         :param encoded_input: padded encoded sentence
         :return:
         """
-        encoded_input = torch.Tensor(encoded_input).long()
-        embed = self.embedding(encoded_input)
-        
+        encoded_input = torch.Tensor(encoded_input).long() # torch.Size([512])
+
+        embed = self.embedding(encoded_input)  # shape = torch.Size([1, 512, 50])
+        embed = embed.unsqueeze(0)
+        hidden_state = self.init_state(1)  # torch.Size([2, 1, 256])
+
+        output, (hidden, cell) = self.bilstm(embed, hidden_state)  # output torch.Size([1, 512, 512])
+
+        max_pooling_out = torch.max(output, 1)[0]
+        return max_pooling_out
