@@ -154,20 +154,21 @@ class UtteranceEncoder(nn.Module):
     Pretrained GloVe Embedding -> BiLSTM -> Max Pooling -> Utterance Vector
     """
 
-    def __init__(self, config):
+    def __init__(self, encoderConfig):
         """
         :param encoded_input: list of padded utterance (encoded)
         """
         super(UtteranceEncoder, self).__init__()
 
         # EMBEDDING
-        self.pretrained_embeddings = config['pretrained_embeddings']
-        self.freeze_embeddings = config['freeze_embeddings']
+        self.pretrained_embeddings = encoderConfig['pretrained_embeddings']
+        self.freeze_embeddings = encoderConfig['freeze_embeddings']
 
         # LSTM
-        self.hidden_size = config['hidden_size']
-        self.bidirectional = config['bidirectional']
-        self.num_layers = config['num_layers']
+        self.hidden_size = encoderConfig['hidden_size']
+        self.bidirectional = encoderConfig['bidirectional']
+        self.num_layers = encoderConfig['num_layers']
+        self.num_directions = 2 if encoderConfig['bidirectional'] == True else 1
 
         self.vocab_size = self.pretrained_embeddings.shape[0]
         self.embeddings_dim = self.pretrained_embeddings.shape[1]
@@ -181,13 +182,8 @@ class UtteranceEncoder(nn.Module):
                               )
 
     def init_state(self, batch_size):
-        if self.bidirectional:
-            return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
-                    torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
-        else:
-            return (torch.zeros(self.num_layers, batch_size, self.hidden_size),
-                    torch.zeros(self.num_layers, batch_size, self.hidden_size))
-
+        return (torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size),
+                torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size))
 
     def forward(self, encoded_input):
         """
@@ -204,3 +200,27 @@ class UtteranceEncoder(nn.Module):
 
         max_pooling_out = torch.max(output, 1)[0]
         return max_pooling_out
+
+class EmoRecog(nn.Module):
+    """ input: utterance vector dari class sebelumnya
+    """
+    def __init__(self, modelConfig):
+        super(EmoRecog, self).__init__()
+        self.num_layers = modelConfig['num_layers']
+        self.bidirectional = modelConfig['bidirectional']
+        self.hidden_size = modelConfig['hidden_size']
+
+        # output = vad
+        # learning rate
+        # dropout
+        # optimizer
+
+    def forward(self, utt_vector):
+        # input vektor utterance
+        input =
+        # init hidden state
+        # attention
+        # output
+        pass
+
+
