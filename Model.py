@@ -64,29 +64,6 @@ class PretrainedEmbeddings(object):
     def __len__(self):
         return len(self.word2index)
 
-    # # TODO: BIKIN BUAT DI DATA BUKAN CLASS EMBEDDINGS
-    # def make_embedding_matrix(self, words, max_len):
-    #     """
-    #     padding and make embedding vectors
-    #     :param words: list of tokens
-    #     :return:
-    #     """
-    #     self.word2index, self.embeddings = self.load_from_file(self.dim)
-    #     self.embedding_size = self.embeddings.shape[1]
-    #     self.final_embeddings = np.zeros((len(words), self.embedding_size))
-    #
-    #     # PADDING
-    #     words += ['<PAD>'] * (max_len - len(words))
-    #
-    #     for i, word in enumerate(words):
-    #         if word in self.word2idx:  # if word is in vocabulary
-    #             self.final_embeddings[i, :] = self.embeddings[self.word2idx[word]]
-    #         else:
-    #             embedding_i = torch.ones(1, self.embedding_size)
-    #             torch.nn.init.xavier_uniform_(embedding_i)  # random value, as np.random
-    #             self.final_embeddings[i, :] = embedding_i
-    #     return self.final_embeddings
-
 
 class ConvEmoRecogDataset(Dataset):
 
