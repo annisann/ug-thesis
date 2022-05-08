@@ -154,21 +154,21 @@ class UtteranceEncoder(nn.Module):
     Pretrained GloVe Embedding -> BiLSTM -> Max Pooling -> Utterance Vector
     """
 
-    def __init__(self, encoderConfig):
+    def __init__(self, config):
         """
         :param encoded_input: list of padded utterance (encoded)
         """
         super(UtteranceEncoder, self).__init__()
 
         # EMBEDDING
-        self.pretrained_embeddings = encoderConfig['pretrained_embeddings']
-        self.freeze_embeddings = encoderConfig['freeze_embeddings']
+        self.pretrained_embeddings = config['pretrained_embeddings']
+        self.freeze_embeddings = config['freeze_embeddings']
 
         # LSTM
-        self.hidden_size = encoderConfig['hidden_size']
-        self.bidirectional = encoderConfig['bidirectional']
-        self.num_layers = encoderConfig['num_layers']
-        self.num_directions = 2 if encoderConfig['bidirectional'] == True else 1
+        self.hidden_size = config['hidden_size']
+        self.bidirectional = config['bidirectional']
+        self.num_layers = config['num_layers']
+        self.num_directions = 2 if config['bidirectional'] == True else 1
 
         self.vocab_size = self.pretrained_embeddings.shape[0]
         self.embeddings_dim = self.pretrained_embeddings.shape[1]
