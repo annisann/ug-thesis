@@ -81,7 +81,7 @@ class ConvEmoRecogDataset(Dataset):
         self.unknown_token = '<UNK>'
         self.max_seq_length = max_seq_length
 
-        self.seq_input = [] # yang udah di padding
+        self.seq_input = []  # yang udah di padding
         # TODO: seq_inputnya buat per data (train, val, test)
 
     def load_dataset(self):
@@ -97,8 +97,8 @@ class ConvEmoRecogDataset(Dataset):
                 f = ast.literal_eval(f)
                 df = pd.DataFrame(f)
 
-                for i in range(len(df)):
-                    self.seq_input.append(self.padding(df.iloc[i].token))
+                # add seq token
+                df['seq'] = [self.padding(df.iloc[i].token) for i in range(len(df))]
 
                 if data == trainData:
                     traindf.append(df)
@@ -190,37 +190,62 @@ class UtteranceEncoder(nn.Module):
         :param encoded_input: padded encoded sentence
         :return:
         """
-        encoded_input = torch.Tensor(encoded_input).long() # torch.Size([512])
+        encoded_input = torch.Tensor(encoded_input).long()  # torch.Size([512])
 
-        embed = self.embedding(encoded_input)  # shape = torch.Size([1, 512, 50])
+        embed = self.embedding(encoded_input)  # shape = torch.Size([1, 512, 50]) batch_size, seq_len, input_size
         embed = embed.unsqueeze(0)
-        hidden_state = self.init_state(1)  # torch.Size([2, 1, 256])
+        hidden_state = self.init_state(1)  # torch.Size([2, 1, 256]) num_directions, batch_size, hidden_size
 
-        output, (hidden, cell) = self.bilstm(embed, hidden_state)  # output torch.Size([1, 512, 512])
+        output, (hidden, cell) = self.bilstm(embed, hidden_state)  # output torch.Size([1, 512, 512]) batch_size, seq_len, num_directions * hidden_size
 
         max_pooling_out = torch.max(output, 1)[0]
         return max_pooling_out
 
+
+# TODO: GIMANA CARA MASUKIN 3 UTT VECTOR KE MODEL? -> ini code untuk singlestep
 class EmoRecog(nn.Module):
     """ input: utterance vector dari class sebelumnya
     """
-    def __init__(self, modelConfig):
+
+    def __init__(self, config):
         super(EmoRecog, self).__init__()
-        self.num_layers = modelConfig['num_layers']
-        self.bidirectional = modelConfig['bidirectional']
-        self.hidden_size = modelConfig['hidden_size']
+        self.num_layers = config['num_layers']
+        self.bidirectional = config['bidirectional']
+        self.num_directions = 2 if config['bidirectional'] == True else 1
+        self.hidden_size = config['hidden_size']
+        self.lr = config['lr']
+        self.input_size = config['input_size']
+        # self.optimizer = config['optimizer']
 
         # output = vad
         # learning rate
         # dropout
         # optimizer
 
+        self.bilstm = nn.LSTM(input_size=self.input_size,
+                              hidden_size=self.hidden_size,
+                              num_layers=self.num_layers,
+                              bidirectional=self.bidirectional,
+                              batch_first=True
+                              )
+
+    def init_state(self, batch_size):
+        return (torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size),
+                torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size))
+
     def forward(self, utt_vector):
-        # input vektor utterance
-        input =
+
+        utt_vector = torch.cat(utt_vector)
+        # input vector utterance
+        utt_vector = torch.Tensor(utt_vector)
+        utt_vector = utt_vector.unsqueeze(0) # torch.Size([1, 1, 512])
+
         # init hidden state
-        # attention
+        hidden_state = self.init_state(1) # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
+
+        # bilstm
+        output, (hn, cn) = self.bilstm(utt_vector, hidden_state)
+        # attention -> coba2 pake attention apa aja
         # output
-        pass
-
-
+        # return output, hn, cn # torch.Size([1, 1, 1024]) seq_len nya jadi 3 brrti?
+        return output.shape, hn.shape, cn.shape
