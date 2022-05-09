@@ -81,9 +81,6 @@ class ConvEmoRecogDataset(Dataset):
         self.unknown_token = '<UNK>'
         self.max_seq_length = max_seq_length
 
-        self.seq_input = []  # yang udah di padding
-        # TODO: seq_inputnya buat per data (train, val, test)
-
     def load_dataset(self):
         # ratio 8:1:1
         trainData, testData = train_test_split(self.scripts, train_size=0.8, random_state=10)
