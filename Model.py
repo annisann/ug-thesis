@@ -229,13 +229,13 @@ class BiLSTM_Attention(nn.Module):
                 torch.zeros(2 * self.num_layers, batch_size, self.hidden_size)
                 )
 
-    def forward(self, utt_vector):
+    def forward(self, inputs):
         # input vector utterance
-        utt_vector = torch.Tensor(utt_vector) # [[index_seq_utt1], ... , [index_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
+        inputs = torch.Tensor(inputs) # [[index_seq_utt1], ... , [index_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
 
-        encoder_out = torch.empty(size=(utt_vector.size()[0], utt_vector.size()[1])) # torch.Size([2, 512])
-        for i in range(len(utt_vector)):
-            encoder_out[i] = self.encoder(utt_vector[i])
+        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1])) # torch.Size([2, 512])
+        for i in range(len(inputs)):
+            encoder_out[i] = self.encoder(inputs[i])
         encoder_out = encoder_out.unsqueeze(0) # torch.Size([1, 2, 512])
 
         # init hidden state
