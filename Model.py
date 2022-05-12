@@ -205,12 +205,8 @@ class BiLSTM_Attention(nn.Module):
         super(BiLSTM_Attention, self).__init__()
 
         pretrained_embeddings = config['pretrained_embeddings']
-
-        # num_utterances = config['num_utterances']
         self.hidden_size = config['hidden_size']
         self.num_layers = config['num_layers']
-        # input_size = config['input_size']
-        # input_size = pretrained_embeddings.shape[1]
         freeze_embeddings = config['freeze_embeddings']
 
         en_hidden_size = config['en_hidden_size']
