@@ -150,37 +150,35 @@ class UtteranceEncoder(nn.Module):
     Compute utterance vector for each utterance
     Pretrained GloVe Embedding -> BiLSTM -> Max Pooling -> Utterance Vector
     """
-
-    def __init__(self, config):
+    # def __init__(self, config):
+    def __init__(self,
+                 pretrained_embeddings,
+                 freeze_embeddings=True,
+                 num_layers=1,
+                 hidden_size=256):
         """
         :param encoded_input: list of padded utterance (encoded)
         """
         super(UtteranceEncoder, self).__init__()
 
-        # EMBEDDING
-        self.pretrained_embeddings = config['pretrained_embeddings']
-        self.freeze_embeddings = config['freeze_embeddings']
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
+        vocab_size = pretrained_embeddings.shape[0]
+        embeddings_dim = pretrained_embeddings.shape[1]
 
-        # LSTM
-        self.hidden_size = config['hidden_size']
-        self.bidirectional = config['bidirectional']
-        self.num_layers = config['num_layers']
-        self.num_directions = 2 if config['bidirectional'] == True else 1
+        self.embedding = nn.Embedding.from_pretrained(torch.Tensor(pretrained_embeddings),
+                                                      freeze=freeze_embeddings)
 
-        self.vocab_size = self.pretrained_embeddings.shape[0]
-        self.embeddings_dim = self.pretrained_embeddings.shape[1]
-        self.embedding = nn.Embedding.from_pretrained(torch.Tensor(self.pretrained_embeddings),
-                                                      freeze=self.freeze_embeddings)
-        self.bilstm = nn.LSTM(input_size=self.embeddings_dim,
+        self.bilstm = nn.LSTM(input_size=embeddings_dim,
                               hidden_size=self.hidden_size,
                               num_layers=self.num_layers,
-                              bidirectional=self.bidirectional,
+                              bidirectional=True,
                               batch_first=True
                               )
 
     def init_state(self, batch_size):
-        return (torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size),
-                torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size))
+        return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
+                torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
 
     def forward(self, encoded_input):
         """
@@ -199,50 +197,57 @@ class UtteranceEncoder(nn.Module):
         return max_pooling_out
 
 
-# TODO: GIMANA CARA MASUKIN 3 UTT VECTOR KE MODEL? -> ini code untuk singlestep
-class EmoRecog(nn.Module):
+class BiLSTM_Attention(nn.Module):
     """ input: utterance vector dari class sebelumnya
     """
 
     def __init__(self, config):
-        super(EmoRecog, self).__init__()
-        self.num_layers = config['num_layers']
-        self.bidirectional = config['bidirectional']
-        self.num_directions = 2 if config['bidirectional'] == True else 1
+        super(BiLSTM_Attention, self).__init__()
+
+        pretrained_embeddings = config['pretrained_embeddings']
+
+        # num_utterances = config['num_utterances']
         self.hidden_size = config['hidden_size']
-        self.lr = config['lr']
-        self.input_size = config['input_size']
-        # self.optimizer = config['optimizer']
+        self.num_layers = config['num_layers']
+        # input_size = config['input_size']
+        # input_size = pretrained_embeddings.shape[1]
+        freeze_embeddings = config['freeze_embeddings']
 
-        # output = vad
-        # learning rate
-        # dropout
-        # optimizer
+        en_hidden_size = config['en_hidden_size']
 
-        self.bilstm = nn.LSTM(input_size=self.input_size,
+        self.encoder = UtteranceEncoder(pretrained_embeddings=pretrained_embeddings,
+                                        freeze_embeddings=freeze_embeddings,
+                                        num_layers=self.num_layers,
+                                        hidden_size=en_hidden_size
+                                        )
+
+        self.bilstm = nn.LSTM(input_size=2*en_hidden_size, #??? inputnya brp? -> output dari encoder
                               hidden_size=self.hidden_size,
                               num_layers=self.num_layers,
-                              bidirectional=self.bidirectional,
+                              bidirectional=True,
                               batch_first=True
                               )
 
     def init_state(self, batch_size):
-        return (torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size),
-                torch.zeros(self.num_directions * self.num_layers, batch_size, self.hidden_size))
+        return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
+                torch.zeros(2 * self.num_layers, batch_size, self.hidden_size)
+                )
 
     def forward(self, utt_vector):
-
-        utt_vector = torch.cat(utt_vector)
         # input vector utterance
-        utt_vector = torch.Tensor(utt_vector)
-        utt_vector = utt_vector.unsqueeze(0) # torch.Size([1, 1, 512])
+        utt_vector = torch.Tensor(utt_vector) # [[index_seq_utt1], ... , [index_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
+
+        encoder_out = torch.empty(size=(utt_vector.size()[0], utt_vector.size()[1])) # torch.Size([2, 512])
+        for i in range(len(utt_vector)):
+            encoder_out[i] = self.encoder(utt_vector[i])
+        encoder_out = encoder_out.unsqueeze(0) # torch.Size([1, 2, 512])
 
         # init hidden state
-        hidden_state = self.init_state(1) # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
+        hidden_state = self.init_state(1)  # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
 
         # bilstm
-        output, (hn, cn) = self.bilstm(utt_vector, hidden_state)
+        output, (hn, cn) = self.bilstm(encoder_out, hidden_state)
         # attention -> coba2 pake attention apa aja
         # output
-        # return output, hn, cn # torch.Size([1, 1, 1024]) seq_len nya jadi 3 brrti?
-        return output.shape, hn.shape, cn.shape
+        return output, hn, cn # torch.Size([1, 1, 1024]) seq_len nya jadi 2 brrti? (torch.Size([1, 2, 512]), torch.Size([2, 1, 256]), torch.Size([2, 1, 256]))
+        # return output.shape, hn.shape, cn.shape
