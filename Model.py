@@ -1,12 +1,13 @@
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset
 import json
 import os
 import ast
 import torch
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class PretrainedEmbeddings(object):
@@ -150,6 +151,7 @@ class UtteranceEncoder(nn.Module):
     Compute utterance vector for each utterance
     Pretrained GloVe Embedding -> BiLSTM -> Max Pooling -> Utterance Vector
     """
+
     # def __init__(self, config):
     def __init__(self,
                  pretrained_embeddings,
@@ -197,6 +199,12 @@ class UtteranceEncoder(nn.Module):
         return max_pooling_out
 
 
+def init_weights(m):
+    if type(m) == nn.Linear:
+        nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+
+
 class BiLSTM_Attention(nn.Module):
     """ input: utterance vector dari class sebelumnya
     """
@@ -210,6 +218,7 @@ class BiLSTM_Attention(nn.Module):
         freeze_embeddings = config['freeze_embeddings']
 
         en_hidden_size = config['en_hidden_size']
+        output_size = 3
 
         self.encoder = UtteranceEncoder(pretrained_embeddings=pretrained_embeddings,
                                         freeze_embeddings=freeze_embeddings,
@@ -217,33 +226,73 @@ class BiLSTM_Attention(nn.Module):
                                         hidden_size=en_hidden_size
                                         )
 
-        self.bilstm = nn.LSTM(input_size=2*en_hidden_size, #??? inputnya brp? -> output dari encoder
+        self.bilstm = nn.LSTM(input_size=2 * en_hidden_size,  # ??? inputnya brp? -> output dari encoder
                               hidden_size=self.hidden_size,
                               num_layers=self.num_layers,
                               bidirectional=True,
                               batch_first=True
                               )
+        self.fc_attention = nn.Linear(self.hidden_size*2, self.hidden_size)
+        self.fc_attention.apply(init_weights)
+
+        self.classifier = nn.Linear(in_features=self.hidden_size*2, # lupa kenapa *6
+                                    out_features=output_size)
+        self.classifier.apply(init_weights)
 
     def init_state(self, batch_size):
         return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
-                torch.zeros(2 * self.num_layers, batch_size, self.hidden_size)
-                )
+                torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
 
     def forward(self, inputs):
         # input vector utterance
-        inputs = torch.Tensor(inputs) # [[index_seq_utt1], ... , [index_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
+        inputs = torch.Tensor(inputs)  #[[i_seq_utt1], ... , [i_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
 
-        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1])) # torch.Size([2, 512])
+        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1]))  # torch.Size([2, 512])
         for i in range(len(inputs)):
             encoder_out[i] = self.encoder(inputs[i])
-        encoder_out = encoder_out.unsqueeze(0) # torch.Size([1, 2, 512])
+        encoder_out = encoder_out.unsqueeze(0)  # torch.Size([1, 2, 512])
 
         # init hidden state
         hidden_state = self.init_state(1)  # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
 
-        # bilstm
+        # BILSTM
         output, (hn, cn) = self.bilstm(encoder_out, hidden_state)
-        # attention -> coba2 pake attention apa aja
-        # output
-        return output, hn, cn # torch.Size([1, 1, 1024]) seq_len nya jadi 2 brrti? (torch.Size([1, 2, 512]), torch.Size([2, 1, 256]), torch.Size([2, 1, 256]))
-        # return output.shape, hn.shape, cn.shape
+        # print(f'hn.shape:{hn.shape}')
+        # att = self.fc_attention(output)
+        # print(att.shape)
+        # tanh = F.tanh(att)
+        # print(tanh.permute(1, 0, 2).shape)
+        #
+        # att = torch.matmul(tanh.permute(1, 0, 2), torch.Tensor(hn))
+        # # att = torch.matmul(torch.permute(tanh, (1, 0)), torch.Tensor(hn))
+        # print(att.shape)
+        # # tanh
+        # # matmul
+        # att = F.softmax(att)
+        # print(att.shape)
+        # # r_att = torch.sum(att.unsqueeze(-1)*output, dim=1)
+        # r = torch.bmm(att, output)
+        #
+        # print(r)
+        # print(r.shape)
+
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        print(output.shape, hn.shape, cn.shape)
+        u_ti = torch.tanh(self.fc_attention(output))  # batch, seq_len, hidden_size
+        print(f'u_ti:{u_ti.shape}')
+        print(u_ti)
+        alignment_scores = u_ti.bmm(nn.Parameter(torch.FloatTensor(1, self.hidden_size)).unsqueeze(2))  # batch, seq_len, 1
+        print(f'alignment_scores:{alignment_scores.shape}')
+        print(alignment_scores)
+        attn_weights = F.softmax(alignment_scores.view(1, -1), dim=1)  # batch, seq_len
+        print(f'attn_weights:{attn_weights.shape}')
+        print(attn_weights)
+        context_vector = attn_weights.unsqueeze(0).bmm(output) # 1, batch, seq_len X batch, seq_len, num_dir * hidden = 1, batch, num_dir*hidden
+        print(f'context:{context_vector.shape}')
+        print(context_vector)
+        # baru ke layer output vad
+        out = self.classifier(context_vector)
+        # out = torch.cat((encoder_out, context_vector[0]), 1).unsqueeze(0)
+        print(f'out:{out.shape}')
+        print(out)
+        return out
