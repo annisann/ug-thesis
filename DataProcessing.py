@@ -23,8 +23,6 @@ class DataProcessing:
 
         self.trans_path = 'dataset/Session*/dialog/transcriptions/*'
         self.emo_path = 'dataset/Session*/dialog/EmoEvaluation/*.txt'
-        self.data = list()
-        self.fixedData = list()
 
     def getSpeaker(self, conv):
         """
@@ -120,7 +118,6 @@ class DataProcessing:
                          a=sum([listOfDict[i]['a'] for i in range(index-n, index)])/n,
                          d=sum([listOfDict[i]['d'] for i in range(index-n, index)])/n)
             utterances.append(fixed)
-        self.fixedData = utterances
         return utterances
 
     def splitData(self, n, scripts):
