@@ -19,21 +19,18 @@ class Preprocessing:
             kv = KeyedVectors.load_word2vec_format(self.w2vFile, binary=False)
 
         # load pycontractions
-        print('Loading . . . ')
+        print('Loading KV Model . . .')
         self.PYCONTRACTIONS = Contractions(kv_model=kv)
 
     def expand(self, utterance):
-        print('Expanding 0____0')
+        print('0_0 Expandiiiiiiing 0____0')
         return list(self.PYCONTRACTIONS.expand_texts(utterance, precise=True))
 
     def casefolding(self, utterance):
-        self.utterance = utterance
-        return self.utterance.lower()
+        return utterance.lower()
 
     def filterPunct(self, utterance):
-        self.utterance = utterance
-        return re.sub(r"[^\w\s]", "", self.utterance)
+        return re.sub(r"[^\w\s]", "", utterance)
 
     def tokenizing(self, utterance):
-        self.utterance = utterance
-        return self.utterance.split()
+        return utterance.split()
