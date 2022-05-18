@@ -11,23 +11,20 @@ class Preprocessing:
         self.gloveFile = 'glove.6B.300d.txt'
         self.w2vFile = self.gloveFile + '.word2vec'
 
-    def expandContractions(self, utterances):
-        """
-        input: list
-        :return: list
-        """
-        self.utterances = utterances
-
         if self.w2vFile not in os.listdir():
+            print("Create W2V from GloVe!")
             glove2word2vec(self.gloveFile, self.w2vFile)
         else:
+            print("Found W2V file!")
             kv = KeyedVectors.load_word2vec_format(self.w2vFile, binary=False)
 
         # load pycontractions
-        cont = Contractions(kv_model=kv)
-        cont.load_models()
+        print('Loading . . . ')
+        self.PYCONTRACTIONS = Contractions(kv_model=kv)
 
-        return list(cont.expand_texts(self.utterances, precise=True))
+    def expand(self, utterance):
+        print('Expanding 0____0')
+        return list(self.PYCONTRACTIONS.expand_texts(utterance, precise=True))
 
     def casefolding(self, utterance):
         self.utterance = utterance
