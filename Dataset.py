@@ -38,7 +38,7 @@ class ConvEmoRecogDataset(Dataset):
                 df = pd.DataFrame(f)
 
                 # add seq token
-                df['seq'] = [self.padding(df.iloc[i].token) for i in range(len(df))]
+                df['seq'] = [self.padding(df.iloc[i].token[:self.max_seq_length]) for i in range(len(df))]
 
                 if data == trainData:
                     traindf.append(df)
