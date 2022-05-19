@@ -99,14 +99,14 @@ class UtteranceEncoder(nn.Module):
         return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
                 torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
 
-    def forward(self, encoded_input):
+    def forward(self, seq_token):
         """
         :param encoded_input: padded encoded sentence
         :return:
         """
-        encoded_input = torch.Tensor(encoded_input).long()  # torch.Size([512])
+        input = torch.Tensor(seq_token).long()  # torch.Size([512])
 
-        embed = self.embedding(encoded_input)  # shape = torch.Size([1, 512, 50]) batch_size, seq_len, input_size
+        embed = self.embedding(input)  # shape = torch.Size([1, 512, 50]) batch_size, seq_len, input_size
         embed = embed.unsqueeze(0)
         hidden_state = self.init_state(1)  # torch.Size([2, 1, 256]) num_directions, batch_size, hidden_size
 
