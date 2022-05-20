@@ -123,7 +123,7 @@ def init_weights(m):
 
 
 class BiLSTM_Attention(nn.Module):
-    """ input: utterance vector dari class sebelumnya
+    """ input: utterance vector dari UtteranceEncoder
     """
 
     def __init__(self, config):
@@ -143,7 +143,7 @@ class BiLSTM_Attention(nn.Module):
                                         hidden_size=en_hidden_size
                                         )
 
-        self.bilstm = nn.LSTM(input_size=2 * en_hidden_size,  # ??? inputnya brp? -> output dari encoder
+        self.bilstm = nn.LSTM(input_size=2 * en_hidden_size,
                               hidden_size=self.hidden_size,
                               num_layers=self.num_layers,
                               bidirectional=True,
@@ -162,15 +162,15 @@ class BiLSTM_Attention(nn.Module):
 
     def forward(self, inputs):
         # input: vector utterance
-        inputs = torch.Tensor(inputs)  #[[i_seq_utt1], ... , [i_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
+        inputs = torch.Tensor(inputs)  # seq_len, hidden_size
 
-        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1]))  # torch.Size([2, 512])
+        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1]))  # seq_len, hidden_size
         for i in range(len(inputs)):
             encoder_out[i] = self.encoder(inputs[i])
-        encoder_out = encoder_out.unsqueeze(0)  # torch.Size([1, 2, 512])
+        encoder_out = encoder_out.unsqueeze(0)  # batch_size, seq_len, hidden_size
 
         # init hidden state
-        hidden_state = self.init_state(1)  # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
+        hidden_state = self.init_state(1)  # seq_len, batch_size, hidden_size
 
         # BiLSTM
         output, (hn, cn) = self.bilstm(encoder_out, hidden_state)
