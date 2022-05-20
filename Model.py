@@ -152,7 +152,7 @@ class BiLSTM_Attention(nn.Module):
         self.fc_attention = nn.Linear(self.hidden_size*2, self.hidden_size)
         self.fc_attention.apply(init_weights)
 
-        self.regression = nn.Linear(in_features=self.hidden_size*2, # lupa kenapa *6
+        self.regression = nn.Linear(in_features=self.hidden_size*2,
                                     out_features=output_size)
         self.regression.apply(init_weights)
 
@@ -161,7 +161,7 @@ class BiLSTM_Attention(nn.Module):
                 torch.zeros(2 * self.num_layers, batch_size, self.hidden_size))
 
     def forward(self, inputs):
-        # input vector utterance
+        # input: vector utterance
         inputs = torch.Tensor(inputs)  #[[i_seq_utt1], ... , [i_seq_uttn]] => size [n_utt, seq_len] torch.Size([2, 512])
 
         encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1]))  # torch.Size([2, 512])
@@ -172,45 +172,15 @@ class BiLSTM_Attention(nn.Module):
         # init hidden state
         hidden_state = self.init_state(1)  # torch.Size([2, 1, 512]), torch.Size([2, 1, 512])
 
-        # BILSTM
+        # BiLSTM
         output, (hn, cn) = self.bilstm(encoder_out, hidden_state)
-        # print(f'hn.shape:{hn.shape}')
-        # att = self.fc_attention(output)
-        # print(att.shape)
-        # tanh = F.tanh(att)
-        # print(tanh.permute(1, 0, 2).shape)
-        #
-        # att = torch.matmul(tanh.permute(1, 0, 2), torch.Tensor(hn))
-        # # att = torch.matmul(torch.permute(tanh, (1, 0)), torch.Tensor(hn))
-        # print(att.shape)
-        # # tanh
-        # # matmul
-        # att = F.softmax(att)
-        # print(att.shape)
-        # # r_att = torch.sum(att.unsqueeze(-1)*output, dim=1)
-        # r = torch.bmm(att, output)
-        #
-        # print(r)
-        # print(r.shape)
 
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        # print(output.shape, hn.shape, cn.shape)
+        # Bahdanau's Attention
         u_ti = torch.tanh(self.fc_attention(output))  # batch, seq_len, hidden_size
-        # print(f'u_ti:{u_ti.shape}')
-        # print(u_ti)
         alignment_scores = u_ti.bmm(nn.Parameter(torch.FloatTensor(1, self.hidden_size)).unsqueeze(2))  # batch, seq_len, 1
-        # print(f'alignment_scores:{alignment_scores.shape}')
-        # print(alignment_scores)
         attn_weights = F.softmax(alignment_scores.view(1, -1), dim=1)  # batch, seq_len
-        # print(f'attn_weights:{attn_weights.shape}')
-        # print(attn_weights)
         context_vector = attn_weights.unsqueeze(0).bmm(output) # 1, batch, seq_len X batch, seq_len, num_dir * hidden = 1, batch, num_dir*hidden
-        # print(f'context:{context_vector.shape}')
-        # print(context_vector)
-        # baru ke layer output vad
+
+        # Regression
         out = self.regression(context_vector).flatten()
-        # out = torch.cat((encoder_out, context_vector[0]), 1).unsqueeze(0)
-        # print(f'out:{out.shape}')
-        # out= out.squeeze(0)
-        # out = out.squeeze(0)
         return out
