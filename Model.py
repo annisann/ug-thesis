@@ -73,8 +73,8 @@ class UtteranceEncoder(nn.Module):
     def __init__(self,
                  pretrained_embeddings,
                  freeze_embeddings=True,
-                 num_layers=1,
-                 hidden_size=256):
+                 num_layers=None,
+                 hidden_size=None):
         """
         :param encoded_input: list of padded utterance (encoded)
         """
@@ -82,7 +82,6 @@ class UtteranceEncoder(nn.Module):
 
         self.num_layers = num_layers
         self.hidden_size = hidden_size
-        vocab_size = pretrained_embeddings.shape[0]
         embeddings_dim = pretrained_embeddings.shape[1]
 
         self.embedding = nn.Embedding.from_pretrained(torch.Tensor(pretrained_embeddings),
@@ -113,13 +112,13 @@ class UtteranceEncoder(nn.Module):
         # print(f'EMBEDDING:\n{embed}')
 
         hidden_state = self.init_state(1)  # torch.Size([2, 1, 256]) num_directions, batch_size, hidden_size
-        print(f'HIDDEN STATE:\n{hidden_state}')
+        # print(f'HIDDEN STATE:\n{hidden_state}')
 
         output, (hidden, cell) = self.bilstm(embed, hidden_state)  # output torch.Size([1, 512, 512]) batch_size, seq_len, num_directions * hidden_size
-        print(f'OUTPUT:\n{output}')
-        print(f'H_N:\n{hidden}')
-        print(f'C_N:\n{cell}')
-        print("="*50)
+        # print(f'OUTPUT:\n{output}')
+        # print(f'H_N:\n{hidden}')
+        # print(f'C_N:\n{cell}')
+        # print("="*50)
 
         # concat last hidden state of forward LSTM and backward LSTM
         encoder_out = torch.concat((hidden[0], hidden[1]), dim=-1)
@@ -140,23 +139,20 @@ class BiLSTM_Attention(nn.Module):
         super(BiLSTM_Attention, self).__init__()
 
         pretrained_embeddings = config['pretrained_embeddings']
+        freeze_embeddings = config['freeze_embeddings']
+        en_hidden_size = config['en_hidden_size']
+        output_size = 3
         self.hidden_size = config['hidden_size']
         self.num_layers = config['num_layers']
-
 
         SAVE_PATH = 'model_state_dict'
         if not os.path.exists(SAVE_PATH):
             os.mkdir(SAVE_PATH)
 
-        freeze_embeddings = config['freeze_embeddings']
-
-        en_hidden_size = config['en_hidden_size']
-        output_size = 3
-
         self.encoder = UtteranceEncoder(pretrained_embeddings=pretrained_embeddings,
                                         freeze_embeddings=freeze_embeddings,
                                         num_layers=self.num_layers,
-                                        hidden_size=en_hidden_size #58
+                                        hidden_size=en_hidden_size
                                         )
 
         self.bilstm = nn.LSTM(input_size=2*en_hidden_size, # size output dari encoder (2*seq_len)
