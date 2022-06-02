@@ -94,6 +94,7 @@ class UtteranceEncoder(nn.Module):
                               bidirectional=True,
                               batch_first=True
                               )
+        self.bilstm.apply(init_weights)
 
     def init_state(self, batch_size):
         return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
@@ -104,16 +105,25 @@ class UtteranceEncoder(nn.Module):
         :param encoded_input: padded encoded sentence
         :return:
         """
+        print(' ===== UTTERANCE ENCODER =====')
         input = torch.Tensor(seq_token).long()  # torch.Size([512])
 
         embed = self.embedding(input)  # shape = torch.Size([1, 512, 50]) batch_size, seq_len, input_size
         embed = embed.unsqueeze(0)
+        # print(f'EMBEDDING:\n{embed}')
+
         hidden_state = self.init_state(1)  # torch.Size([2, 1, 256]) num_directions, batch_size, hidden_size
+        print(f'HIDDEN STATE:\n{hidden_state}')
 
         output, (hidden, cell) = self.bilstm(embed, hidden_state)  # output torch.Size([1, 512, 512]) batch_size, seq_len, num_directions * hidden_size
+        print(f'OUTPUT:\n{output}')
+        print(f'H_N:\n{hidden}')
+        print(f'C_N:\n{cell}')
+        print("="*50)
 
-        max_pooling_out = torch.max(output, 1)[0]
-        return max_pooling_out
+        # concat last hidden state of forward LSTM and backward LSTM
+        encoder_out = torch.concat((hidden[0], hidden[1]), dim=-1)
+        return encoder_out
 
 
 def init_weights(m):
@@ -132,6 +142,12 @@ class BiLSTM_Attention(nn.Module):
         pretrained_embeddings = config['pretrained_embeddings']
         self.hidden_size = config['hidden_size']
         self.num_layers = config['num_layers']
+
+
+        SAVE_PATH = 'model_state_dict'
+        if not os.path.exists(SAVE_PATH):
+            os.mkdir(SAVE_PATH)
+
         freeze_embeddings = config['freeze_embeddings']
 
         en_hidden_size = config['en_hidden_size']
@@ -140,21 +156,26 @@ class BiLSTM_Attention(nn.Module):
         self.encoder = UtteranceEncoder(pretrained_embeddings=pretrained_embeddings,
                                         freeze_embeddings=freeze_embeddings,
                                         num_layers=self.num_layers,
-                                        hidden_size=en_hidden_size
+                                        hidden_size=en_hidden_size #58
                                         )
 
-        self.bilstm = nn.LSTM(input_size=2 * en_hidden_size,
+        self.bilstm = nn.LSTM(input_size=2*en_hidden_size, # size output dari encoder (2*seq_len)
                               hidden_size=self.hidden_size,
                               num_layers=self.num_layers,
                               bidirectional=True,
                               batch_first=True
                               )
+        self.bilstm.apply(init_weights)
         self.fc_attention = nn.Linear(self.hidden_size*2, self.hidden_size)
         self.fc_attention.apply(init_weights)
 
         self.regression = nn.Linear(in_features=self.hidden_size*2,
                                     out_features=output_size)
         self.regression.apply(init_weights)
+
+        torch.save({'encoder_state_dict': self.encoder.state_dict(),
+                    'bilstm_state_dict': self.bilstm.state_dict()},
+                   SAVE_PATH+'/model.txt')
 
     def init_state(self, batch_size):
         return (torch.zeros(2 * self.num_layers, batch_size, self.hidden_size),
@@ -163,8 +184,11 @@ class BiLSTM_Attention(nn.Module):
     def forward(self, inputs):
         # input: vector utterance
         inputs = torch.Tensor(inputs)  # seq_len, hidden_size
+        print(f'input size:{inputs.size()}')
 
-        encoder_out = torch.empty(size=(inputs.size()[0], inputs.size()[1]))  # seq_len, hidden_size
+        # 2x karena output encoder adalah 2*seq_len
+        encoder_out = torch.empty(size=(inputs.size()[0], 2*inputs.size()[1]))  # seq_len, hidden_size
+
         for i in range(len(inputs)):
             encoder_out[i] = self.encoder(inputs[i])
         encoder_out = encoder_out.unsqueeze(0)  # batch_size, seq_len, hidden_size
