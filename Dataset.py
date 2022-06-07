@@ -13,7 +13,7 @@ class ConvEmoRecogDataset(Dataset):
     def __init__(self, utterance_num, vocab, max_seq_length):
         self.utterance_num = utterance_num
 
-        folder = f'n_{self.utterance_num}'
+        folder = f'C:/Users/asus/PycharmProjects/skripsi/{self.utterance_num}-utterances'
         scripts = os.listdir(folder)
         self.scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
 
