@@ -1,3 +1,5 @@
+import json
+
 import matplotlib
 import matplotlib.pyplot as plt
 import glob
@@ -17,6 +19,11 @@ def save_plots(train_loss, valid_loss, loss_plot_path):
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig(loss_plot_path)
+
+
+def save_config(config, path):
+    with open(path, 'w') as file:
+        file.write(json.dumps(dict((k, v) for k, v in config.items() if k != 'pretrained_embeddings')))
 
 
 def save_hyperparameters(text, path):
@@ -40,6 +47,34 @@ def create_search_dir():
     return search_dir
 
 
-def save_best_hyperparameters(text, path):
-    with open(path, 'a') as f:
-        f.write(f'{str(text)}\n')
+# def save_best_hyperparameters(text, path):
+#     with open(path, 'a') as f:
+#         f.write(f'{str(text)}\n')
+
+class EarlyStop:
+    """
+    To stop the training when the loss doesn't improve after certain epochs.
+    """
+    def __init__(self, patience=3, min_delta=0):
+        """
+        :param patience: n epochs to wait before stopping.
+        :param min_delta: min differences between loss(n_epoch-1) and loss(n_epoch)
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif self.best_loss - val_loss > self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+        elif self.best_loss - val_loss < self.min_delta:
+            self.counter += 1
+            print(f"[INFO] Early stopping counter: {self.counter}/{self.patience}")
+            if self.counter >= self.patience:
+                print(">>>>> EARLY STOPPING <<<<<")
+                self.early_stop = True
