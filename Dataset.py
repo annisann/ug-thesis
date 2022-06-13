@@ -5,7 +5,7 @@ import ast
 import pandas as pd
 
 
-class ConvEmoRecogDataset(Dataset):
+class ConvEmoRecogDataset:
     """
     Load, split, and pad data.
     """
@@ -13,7 +13,7 @@ class ConvEmoRecogDataset(Dataset):
     def __init__(self, utterance_num, vocab, max_seq_length):
         self.utterance_num = utterance_num
 
-        folder = f'C:/Users/asus/PycharmProjects/skripsi/{self.utterance_num}-utterances'
+        folder = f'{self.utterance_num}-utterances'
         scripts = os.listdir(folder)
         self.scripts = [f'{folder}/{script}' for script in scripts if os.path.getsize(f'{folder}/{script}') != 0]
 
@@ -86,3 +86,20 @@ class ConvEmoRecogDataset(Dataset):
         return max(list(map(lambda token: len(token), self.train.token))), \
                max(list(map(lambda token: len(token), self.val.token))), \
                max(list(map(lambda token: len(token), self.test.token)))
+
+
+class NUtterancesDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        utterances, v, a, d = self.data[index][0], self.data[index][1], self.data[index][2], self.data[index][3]
+
+        sample = {"utterances": utterances,
+                  "v": v,
+                  "a": a,
+                  "d": d}
+        return utterances, v, a, d
