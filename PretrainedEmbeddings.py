@@ -24,7 +24,7 @@ class PretrainedEmbeddings:
         self.words = [PADDING_TOKEN, UNKNOWN_TOKEN]
         self.embeddings = np.random.uniform(-0.25, 0.25, (2, dim)).tolist()
 
-        embedding_file = f"C:/Users/asus/PycharmProjects/skripsi/glove.6B.{dim}d.txt"
+        embedding_file = f"glove.6B.{dim}d.txt"
 
         with open(embedding_file, encoding="utf8") as fp:
             for line in fp.readlines():
