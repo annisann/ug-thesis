@@ -42,27 +42,3 @@ def evaluate(model, data, criterion): #, device):
             running_loss += loss.item()
 
     return running_loss/len(data)
-
-
-def test(model, data, criterion):
-    model.eval()
-    running_loss = 0.
-
-    with torch.no_grad():
-        for input in data:
-            input_utterances, v_act, a_act, d_act = input[0], input[1], input[2], input[3]
-
-            # v_pred, a_pred, d_pred = model(input_utterances[0], input_utterances[1])
-            v_pred, a_pred, d_pred = model(input_utterances)
-
-            loss_v = criterion(v_pred, v_act)
-            loss_a = criterion(a_pred, a_act)
-            loss_d = criterion(d_pred, d_act)
-            loss = loss_v + loss_a + loss_d
-
-            running_loss += loss.item()
-
-            print(f"Actual VAD\tPredicted VAD")
-            print(f"{(v_act, a_act, d_act)}\t\t{(v_pred, a_pred, d_pred)}")
-
-    return running_loss / len(data)
