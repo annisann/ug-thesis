@@ -4,6 +4,7 @@ from Model import *
 from Dataset import *
 from PretrainedEmbeddings import *
 from utils import *
+import os
 
 import time
 import argparse
@@ -21,27 +22,34 @@ parser.add_argument('-utt', '--n-utterances', dest='n_utterances', default=2, ty
                     help='number of utterances')
 parser.add_argument('-opt', '--optimizer', dest='optimizer', default='adam', type=str,
                     help='type of optimizer')
-parser.add_argument('-lr', '--learning-rate', dest='lr', default=0.05, type=float,
+parser.add_argument('-lr', '--learning-rate', dest='lr', default=0.025, type=float,
                     help="optimizer's learning rate")
-parser.add_argument('-bs', '--batch-size', dest='batch_size', default=256, type=int,
+parser.add_argument('-bs', '--batch-size', dest='batch_size', default=64, type=int,
                     help='batch size of the data')
-parser.add_argument('-dim', '--embed-dim', dest='dim', default=50, type=int,
+parser.add_argument('-dim', '--embed-dim', dest='dim', default=100, type=int,
                     help='embedding dimension size')
 parser.add_argument('-s', '--seq-len', dest='max_seq_len', default=20, type=int,
                     help='sequence length for encoder')
 parser.add_argument('-eh', '--en-hidden', dest='en_hidden_size', default=16, type=int,
                     help='encoder hidden size')
+parser.add_argument('--en-layers', dest='en_n_layer', default=1, type=int,
+                    help='number of bilstm layers on encoder')
+# EMBEDDING DROPOUT
+parser.add_argument('--dropout', dest='embedding_dropout_rate', default=0.0, type=float,
+                    help='dropout rate after embedding layer')
+
 parser.add_argument('-l', '--n-layers', dest='num_layers', default=1, type=int,
-                    help='number of bilstm layers')
+                    help='number of bilstm layers on bilstm-attention')
 
 parser.add_argument('-hs', '--hidden', dest='hidden_size', default=16, type=int,
-                    help='hidden size')
+                    help='hidden size of bilstm on bilstm-attention')
 
 parser.add_argument('--attention', dest='with_attention', action='store_true', default=True)
 
 parser.add_argument('--lr-scheduler', dest='lr_scheduler', action='store_true')
 parser.add_argument('--early-stop', dest='early_stopping', action='store_true')
 config = vars(parser.parse_args())
+
 
 def prepare_data(dataset, n_utterances):
     """
@@ -63,8 +71,8 @@ def prepare_data(dataset, n_utterances):
             seq.append(data)
     return seq
 
-def train_and_evaluate(config, train_data, val_data):
 
+def train_and_evaluate(config, train_data, val_data):
     run_dir = create_run_dir()
 
     save_hyperparameters(config, f'{run_dir}/hyperparameters.yml')
@@ -74,7 +82,8 @@ def train_and_evaluate(config, train_data, val_data):
 
     # for train
     # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = BiLSTM_Attention(config, embeddings) #.to(device)
+    model = BiLSTM_Attention(config, embeddings)  # .to(device)
+
     total_params = sum(p.numel() for p in model.parameters())
     print(f'Model has {total_params:,} trainable parameters.')
 
@@ -93,31 +102,29 @@ def train_and_evaluate(config, train_data, val_data):
             # print(f"{name}\n{param}")
             f.write(f"{name}\n{param}\n")
 
-
     # best_val_loss = float('inf')
     train_loss, val_loss = [], []
     train_time = []
     for epoch in range(config['n_epochs']):
         start_time = time.time()
 
-        epoch_train_loss = train(model, train_data, criterion, optimizer)#, device)
-        epoch_val_loss = evaluate(model, val_data, criterion)#, device)
+        epoch_train_loss = train(model, train_data, criterion, optimizer)  # , device)
+        epoch_val_loss = evaluate(model, val_data, criterion)  # , device)
 
         end_time = time.time()
 
-        epoch_hours, epoch_mins, epoch_secs = count_time(end_time-start_time)
+        epoch_hours, epoch_mins, epoch_secs = count_time(end_time - start_time)
 
         train_loss.append(epoch_train_loss)
         val_loss.append(epoch_val_loss)
-        train_time.append(end_time-start_time)
+        train_time.append(end_time - start_time)
 
         # save weights
         with open(f"{run_dir}/weights.txt", "a") as f:
-            f.write(f"\n========== EPOCH {epoch+1} ==========\n")
+            f.write(f"\n========== EPOCH {epoch + 1} ==========\n")
             for name, param in model.named_parameters():
                 # print(f"{name}\n{param}")
                 f.write(f"{name}\n{param}\n")
-
 
         if config['lr_scheduler']:
             lr_scheduler = LRScheduler(optimizer)
@@ -158,8 +165,8 @@ def train_and_evaluate(config, train_data, val_data):
 
 
 if __name__ == '__main__':
-
     vocab, embeddings = pretrain.load_from_file(config['dim'])
+    print(embeddings.shape)
 
     dataset = ConvEmoRecogDataset(utterance_num=config['n_utterances'],
                                   vocab=vocab,
@@ -177,6 +184,3 @@ if __name__ == '__main__':
 
     print('Train and evaluate')
     train_and_evaluate(config, train_seq, val_seq)
-
-    # print('Test')
-    # test(model, data, criterion)
