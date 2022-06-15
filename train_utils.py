@@ -1,13 +1,13 @@
 import torch
 
-def train(model, data, criterion, optimizer): #, device):
+
+def train(model, data, criterion, optimizer):
     model.train()
     running_loss = 0.
 
     for input in data:
         input_utterances, v_act, a_act, d_act = input[0], input[1], input[2], input[3]
 
-        # v_pred, a_pred, d_pred = model(input_utterances[0], input_utterances[1])
         v_pred, a_pred, d_pred = model(input_utterances)
 
         loss_v = criterion(v_pred, v_act)
@@ -23,7 +23,8 @@ def train(model, data, criterion, optimizer): #, device):
 
     return running_loss/len(data)
 
-def evaluate(model, data, criterion): #, device):
+
+def evaluate(model, data, criterion):
     model.eval()
     running_loss = 0.
 
@@ -31,7 +32,6 @@ def evaluate(model, data, criterion): #, device):
         for input in data:
             input_utterances, v_act, a_act, d_act = input[0], input[1], input[2], input[3]
 
-            # v_pred, a_pred, d_pred = model(input_utterances[0], input_utterances[1])
             v_pred, a_pred, d_pred = model(input_utterances)
 
             loss_v = criterion(v_pred, v_act)
