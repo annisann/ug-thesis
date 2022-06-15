@@ -7,6 +7,14 @@ from utils import *
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn as nn
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--n-dir', dest='n', type=int)
+arg = vars(parser.parse_args())
+
+arg['n'] = 27
+
 
 def prepare_data(dataset, n_utterances):
     """
@@ -29,16 +37,17 @@ def prepare_data(dataset, n_utterances):
     return seq
 
 # load model, isi paramnya dari .yaml
-with open('outputs/run_13/hyperparameters.yml') as f:
+with open(f'outputs/run_{n}/hyperparameters.yml') as f:
     hyperparam_tuples = re.findall('(\w+): (.+)', f.read(), re.MULTILINE)
     hyperparam_dict = {k: v for k, v in hyperparam_tuples}
 
-non_int_val = ['optimizer', 'with_attention', 'lr_scheduler', 'early_stopping', 'lr']
+non_int_val = ['optimizer', 'with_attention', 'lr_scheduler', 'early_stopping', 'lr', 'embedding_dropout_rate']
+is_float_val = ['lr', 'embedding_dropout_rate']
 
 for k, v in hyperparam_dict.items():
     if k not in non_int_val:
         hyperparam_dict[k] = int(v)
-    elif k == 'lr':
+    elif k in is_float_val:
         hyperparam_dict[k] = float(v)
 
 pretrain = PretrainedEmbeddings()
@@ -55,7 +64,7 @@ test_dir = create_test_dir()
 
 # load weight from path
 model = BiLSTM_Attention(hyperparam_dict, embeddings)
-model.load_state_dict(torch.load('outputs/run_26/state_dict.pt'))
+model.load_state_dict(torch.load(f'outputs/run_{n}/state_dict.pt')) # kalo mau diautomate, ganti ini.. lot of work? nyampe gak ya lol
 
 criterion = nn.MSELoss()
 
@@ -70,7 +79,7 @@ for i, input in enumerate(test_seq):
     with torch.no_grad():
         input_utterances, v_act, a_act, d_act = input[0], input[1], input[2], input[3]
 
-        v_pred, a_pred, d_pred = model(x)
+        v_pred, a_pred, d_pred = model(input_utterances)
         loss_v = criterion(v_pred, v_act)
         loss_a = criterion(a_pred, a_act)
         loss_d = criterion(d_pred, d_act)
