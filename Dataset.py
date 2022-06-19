@@ -3,11 +3,13 @@ from torch.utils.data import Dataset
 import os
 import ast
 import pandas as pd
+import numpy as np
+import torch
 
 
 class ConvEmoRecogDataset:
     """
-    Load, split, and pad data.
+    Load preprocessed data, split, and pad data.
     """
 
     def __init__(self, utterance_num, vocab, max_seq_length):
@@ -68,11 +70,6 @@ class ConvEmoRecogDataset:
                 seq_tokens[i] = self.word2idx[seq_tokens[i]]
         return seq_tokens
 
-    # def __len__(self):
-    #     return len(self.train) / self.utterance_num, \
-    #            len(self.val) / self.utterance_num, \
-    #            len(self.test) / self.utterance_num
-
     def get_data(self, data, index):
         # index = file ke-n
         index_1 = index * self.utterance_num
@@ -89,6 +86,9 @@ class ConvEmoRecogDataset:
 
 
 class NUtterancesDataset(Dataset):
+    """
+    Create Dataset dataset ^_^
+    """
     def __init__(self, data):
         self.data = data
 
@@ -103,3 +103,24 @@ class NUtterancesDataset(Dataset):
                   "a": a,
                   "d": d}
         return utterances, v, a, d
+
+
+def prepare_data(dataset, n_utterances):
+    """
+    :param dataset: type of dataset
+    :param n_utterances: num of utterances for input
+    :return: tuple of [seq_token_i, ..., seq_token_n], mean(V), mean(A), mean(D)
+    """
+    seq = []
+
+    for i in range(len(dataset)):
+        if i % n_utterances == 0:
+            data = tuple(
+                (np.array(list(dataset.seq[i:i + n_utterances])),
+                 torch.from_numpy(np.array(sum(list(dataset.v[i:i + n_utterances])) / n_utterances, dtype=np.float32)),
+                 torch.from_numpy(np.array(sum(list(dataset.a[i:i + n_utterances])) / n_utterances, dtype=np.float32)),
+                 torch.from_numpy(np.array(sum(list(dataset.d[i:i + n_utterances])) / n_utterances, dtype=np.float32))
+                 )
+            )
+            seq.append(data)
+    return seq
