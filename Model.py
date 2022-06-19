@@ -84,10 +84,7 @@ class BiLSTM_Attention(nn.Module):
         self.hidden_size = config['hidden_size']
         self.num_layers = config['num_layers']
         self.with_attention = config['with_attention']
-
-
         output_size = 3
-        # self.embedding_size = pretrained_embeddings.shape[1]
 
         self.encoder = UtteranceEncoder(pretrained_embeddings=pretrained_embeddings,
                                         freeze_embeddings=True,
@@ -147,8 +144,6 @@ class BiLSTM_Attention(nn.Module):
             out = self.regression(context_vector).flatten()
             return out
         else:
-            # output = self.dropout(output)
-            # print(output)
             output = output.squeeze(0)[-1]
             out = self.regression(output).flatten()
             return out
