@@ -25,6 +25,7 @@ def save_plots(train_loss, valid_loss, loss_plot_path):
         label='validation loss'
     )
     plt.xlabel('Epochs')
+    plt.xticks(range(1, len(valid_loss)))
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig(loss_plot_path)
