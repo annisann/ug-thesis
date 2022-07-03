@@ -134,15 +134,17 @@ class DataProcessing:
         # for every scripts in preprocessed_data
         for script in os.listdir(path):
             print(f'{path}/{script}')
+
             # open file, isi file jadi list
             f = open(f'{path}/{script}').read()
             f = ast.literal_eval(f)
+
             # count length of [] scripts
             script_len = len(f)
-            print(script_len)
+
             # index[] -> index of 0:2, 2:4, ... -> (0, len_scripts, n)
             idx = [i for i in range(0, script_len+1, n)]
-            print(len(idx), idx)
+
             # while i < len_scripts
             i = 0
             while i < script_len:
