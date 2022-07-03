@@ -128,17 +128,22 @@ class BiLSTM_Attention(nn.Module):
 
         # BiLSTM
         output, (hidden, cell) = self.bilstm(encoder_out, hidden_state)
+        print(f"output shape: {output.size()}")
 
         if self.with_attention:
             # Bahdanau's Attention
-            weight = nn.Parameter(torch.FloatTensor(1, self.hidden_size*2))
+            align_weight = nn.Parameter(torch.FloatTensor(1, self.hidden_size*2))
             x = torch.tanh(self.fc_attention(output))  # batch, seq_len, hidden_size
             # calculate alignment scores
-            alignment_scores = x.bmm(weight.unsqueeze(2))  # batch, seq_len, 1
+            alignment_scores = x.bmm(align_weight.unsqueeze(2))  # batch, seq_len, 1
             # softmax the alignment scores -> attention weights
             attn_weights = F.softmax(alignment_scores.view(1, -1), dim=1)  # batch, seq_len
             # multiply attention weights with output
             context_vector = attn_weights.unsqueeze(0).bmm(output) # 1, batch, seq_len X batch, seq_len, num_dir * hidden = 1, batch, num_dir*hidden
+            # print(f"x shape: {x.size()}")
+            # print(f"alignment score shape: {alignment_scores.size()}")
+            # print(f"attention weight shape: {attn_weights.size()}")
+            # print(f"context vector shape: {context_vector.size()}")
 
             # Regression
             out = self.regression(context_vector).flatten()
